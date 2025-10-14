@@ -1,7 +1,7 @@
 [package]
 name = "hive-gpu"
 version = "0.1.0"
-edition = "2024"
+edition = "2025"
 authors = ["HiveLLM Contributors"]
 license = "MIT"
 description = "High-performance GPU acceleration for vector operations (Metal, CUDA, wgpu)"

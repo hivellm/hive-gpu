@@ -1,0 +1,25 @@
+# Cargo configuration for hive-gpu
+[package]
+# Package metadata is in Cargo.toml
+
+[build]
+# Build configuration
+rustflags = ["-C", "target-cpu=native"]
+
+[profile.release]
+# Optimize for performance
+opt-level = 3
+lto = true
+codegen-units = 1
+panic = "abort"
+
+[profile.dev]
+# Development profile
+opt-level = 0
+debug = true
+
+[profile.bench]
+# Benchmark profile
+opt-level = 3
+lto = true
+codegen-units = 1

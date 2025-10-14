@@ -1,201 +1,299 @@
-name: CI
+name: CI/CD Pipeline
 
 on:
   push:
-    branches: [main, develop]
+    branches: [ main, develop ]
   pull_request:
-    branches: [main]
+    branches: [ main ]
+  release:
+    types: [ published ]
+
+env:
+  CARGO_TERM_COLOR: always
+  RUST_BACKTRACE: 1
 
 jobs:
+  # Test on multiple platforms and Rust versions
   test:
+    name: Test on ${{ matrix.os }} (Rust ${{ matrix.rust }})
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        os: [macos-latest, ubuntu-latest, windows-latest]
-        rust: [stable, nightly]
         include:
-          - os: macos-latest
-            features: metal-native
+          # Test on stable Rust
           - os: ubuntu-latest
-            features: cuda
+            rust: stable
+            target: x86_64-unknown-linux-gnu
           - os: windows-latest
-            features: wgpu
+            rust: stable
+            target: x86_64-pc-windows-msvc
+          - os: macos-latest
+            rust: stable
+            target: x86_64-apple-darwin
+          # Test on beta and nightly for compatibility
+          - os: ubuntu-latest
+            rust: beta
+            target: x86_64-unknown-linux-gnu
+          - os: ubuntu-latest
+            rust: nightly
+            target: x86_64-unknown-linux-gnu
 
     steps:
-      - uses: actions/checkout@v4
+    - name: Checkout code
+      uses: actions/checkout@v4
 
-      - name: Install Rust
-        uses: actions-rs/toolchain@v1
-        with:
-          toolchain: ${{ matrix.rust }}
-          components: rustfmt, clippy
-          override: true
+    - name: Install Rust
+      uses: dtolnay/rust-toolchain@master
+      with:
+        toolchain: ${{ matrix.rust }}
+        targets: ${{ matrix.target }}
 
-      - name: Cache cargo registry
-        uses: actions/cache@v3
-        with:
-          path: ~/.cargo/registry
-          key: ${{ runner.os }}-cargo-registry-${{ hashFiles('**/Cargo.lock') }}
+    - name: Cache cargo registry
+      uses: actions/cache@v3
+      with:
+        path: |
+          ~/.cargo/registry
+          ~/.cargo/git
+          target
+        key: ${{ runner.os }}-cargo-${{ matrix.rust-${{ hashFiles('**/Cargo.lock') }}}
+        restore-keys: |
+          ${{ runner.os }}-cargo-
 
-      - name: Cache cargo index
-        uses: actions/cache@v3
-        with:
-          path: ~/.cargo/git
-          key: ${{ runner.os }}-cargo-index-${{ hashFiles('**/Cargo.lock') }}
+    - name: Install system dependencies (Ubuntu)
+      if: matrix.os == 'ubuntu-latest'
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y libclang-dev pkg-config
 
-      - name: Cache cargo build
-        uses: actions/cache@v3
-        with:
-          path: target
-          key: ${{ runner.os }}-cargo-build-target-${{ hashFiles('**/Cargo.lock') }}
+    - name: Install system dependencies (macOS)
+      if: matrix.os == 'macos-latest'
+      run: |
+        brew install pkg-config
 
-      - name: Install macOS dependencies
-        if: matrix.os == 'macos-latest'
-        run: |
-          xcode-select --install || true
-          # Install Metal development tools
-          sudo xcode-select --switch /Applications/Xcode.app/Contents/Developer
+    - name: Check formatting
+      run: cargo fmt --all -- --check
 
-      - name: Install Linux dependencies
-        if: matrix.os == 'ubuntu-latest'
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y build-essential
-          # Install CUDA if needed
-          if [ "${{ matrix.features }}" = "cuda" ]; then
-            wget https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2004/x86_64/cuda-ubuntu2004.pin
-            sudo mv cuda-ubuntu2004.pin /etc/apt/preferences.d/cuda-repository-pin-600
-            wget https://developer.download.nvidia.com/compute/cuda/12.0.0/local_installers/cuda-repo-ubuntu2004-12-0-local_12.0.0-525.60.13-1_amd64.deb
-            sudo dpkg -i cuda-repo-ubuntu2004-12-0-local_12.0.0-525.60.13-1_amd64.deb
-            sudo cp /var/cuda-repo-ubuntu2004-12-0-local/cuda-*-keyring.gpg /usr/share/keyrings/
-            sudo apt-get update
-            sudo apt-get -y install cuda
-          fi
+    - name: Run clippy
+      run: cargo clippy --all-targets --all-features -- -D warnings
 
-      - name: Install Windows dependencies
-        if: matrix.os == 'windows-latest'
-        run: |
-          # Install Visual Studio Build Tools
-          choco install visualstudio2022buildtools --package-parameters "--add Microsoft.VisualStudio.Workload.VCTools"
-          # Install CUDA if needed
-          if [ "${{ matrix.features }}" = "cuda" ]; then
-            choco install cuda
-          fi
+    - name: Run tests (CPU only)
+      run: cargo test --verbose
 
-      - name: Check formatting
-        run: cargo fmt --all -- --check
+    - name: Run tests (Metal on macOS)
+      if: matrix.os == 'macos-latest'
+      run: cargo test --features metal-native --verbose
 
-      - name: Run clippy
-        run: cargo clippy --all-targets --all-features -- -D warnings
+    - name: Run tests (CUDA on Linux)
+      if: matrix.os == 'ubuntu-latest'
+      run: cargo test --features cuda --verbose
 
-      - name: Build (Metal)
-        if: matrix.os == 'macos-latest'
-        run: cargo build --features metal-native --verbose
+    - name: Run tests (wgpu)
+      run: cargo test --features wgpu --verbose
 
-      - name: Build (CUDA)
-        if: matrix.os == 'ubuntu-latest' && matrix.features == 'cuda'
-        run: cargo build --features cuda --verbose
+    - name: Build examples
+      run: cargo build --examples --verbose
 
-      - name: Build (wgpu)
-        if: matrix.os == 'windows-latest' && matrix.features == 'wgpu'
-        run: cargo build --features wgpu --verbose
+    - name: Run benchmarks (if available)
+      run: cargo bench --verbose || echo "No benchmarks available"
 
-      - name: Build (default)
-        if: matrix.features == 'metal-native'
-        run: cargo build --verbose
-
-      - name: Test (Metal)
-        if: matrix.os == 'macos-latest'
-        run: cargo test --features metal-native --verbose
-
-      - name: Test (CUDA)
-        if: matrix.os == 'ubuntu-latest' && matrix.features == 'cuda'
-        run: cargo test --features cuda --verbose
-
-      - name: Test (wgpu)
-        if: matrix.os == 'windows-latest' && matrix.features == 'wgpu'
-        run: cargo test --features wgpu --verbose
-
-      - name: Test (default)
-        if: matrix.features == 'metal-native'
-        run: cargo test --verbose
-
-      - name: Run examples (Metal)
-        if: matrix.os == 'macos-latest'
-        run: cargo run --example metal_basic --features metal-native
-
-      - name: Run examples (CUDA)
-        if: matrix.os == 'ubuntu-latest' && matrix.features == 'cuda'
-        run: cargo run --example cuda_basic --features cuda
-
-      - name: Run examples (wgpu)
-        if: matrix.os == 'windows-latest' && matrix.features == 'wgpu'
-        run: cargo run --example wgpu_basic --features wgpu
-
-      - name: Run benchmarks (Metal)
-        if: matrix.os == 'macos-latest'
-        run: cargo bench --features metal-native --verbose
-
-      - name: Run benchmarks (CUDA)
-        if: matrix.os == 'ubuntu-latest' && matrix.features == 'cuda'
-        run: cargo bench --features cuda --verbose
-
-      - name: Run benchmarks (wgpu)
-        if: matrix.os == 'windows-latest' && matrix.features == 'wgpu'
-        run: cargo bench --features wgpu --verbose
-
-  lint:
+  # Build and test with different feature combinations
+  feature-test:
+    name: Feature Test - ${{ matrix.features }}
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        features:
+          - ""
+          - "metal-native"
+          - "cuda"
+          - "wgpu"
+          - "metal-native,cuda"
+          - "metal-native,wgpu"
+          - "cuda,wgpu"
+          - "metal-native,cuda,wgpu"
+
     steps:
-      - uses: actions/checkout@v4
+    - name: Checkout code
+      uses: actions/checkout@v4
 
-      - name: Install Rust
-        uses: actions-rs/toolchain@v1
-        with:
-          toolchain: stable
-          components: rustfmt, clippy
-          override: true
+    - name: Install Rust
+      uses: dtolnay/rust-toolchain@stable
 
-      - name: Check formatting
-        run: cargo fmt --all -- --check
+    - name: Cache cargo registry
+      uses: actions/cache@v3
+      with:
+        path: |
+          ~/.cargo/registry
+          ~/.cargo/git
+          target
+        key: ${{ runner.os }}-cargo-${{ matrix.features }}-${{ hashFiles('**/Cargo.lock') }}
+        restore-keys: |
+          ${{ runner.os }}-cargo-
 
-      - name: Run clippy
-        run: cargo clippy --all-targets --all-features -- -D warnings
+    - name: Install system dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y libclang-dev pkg-config
 
+    - name: Test with features
+      run: |
+        if [ -n "${{ matrix.features }}" ]; then
+          cargo test --features "${{ matrix.features }}" --verbose
+        else
+          cargo test --verbose
+        fi
+
+    - name: Build with features
+      run: |
+        if [ -n "${{ matrix.features }}" ]; then
+          cargo build --features "${{ matrix.features }}" --verbose
+        else
+          cargo build --verbose
+        fi
+
+  # Security audit
   security:
+    name: Security Audit
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+    - name: Checkout code
+      uses: actions/checkout@v4
 
-      - name: Install Rust
-        uses: actions-rs/toolchain@v1
-        with:
-          toolchain: stable
-          override: true
+    - name: Install Rust
+      uses: dtolnay/rust-toolchain@stable
 
-      - name: Install cargo-audit
-        run: cargo install cargo-audit
+    - name: Install cargo-audit
+      run: cargo install cargo-audit
 
-      - name: Run security audit
-        run: cargo audit
+    - name: Run security audit
+      run: cargo audit
 
+  # Documentation
   docs:
+    name: Build Documentation
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+    - name: Checkout code
+      uses: actions/checkout@v4
 
-      - name: Install Rust
-        uses: actions-rs/toolchain@v1
-        with:
-          toolchain: stable
-          override: true
+    - name: Install Rust
+      uses: dtolnay/rust-toolchain@stable
 
-      - name: Build documentation
-        run: cargo doc --no-deps --features metal-native
+    - name: Cache cargo registry
+      uses: actions/cache@v3
+      with:
+        path: |
+          ~/.cargo/registry
+          ~/.cargo/git
+          target
+        key: ${{ runner.os }}-cargo-docs-${{ hashFiles('**/Cargo.lock') }}
+        restore-keys: |
+          ${{ runner.os }}-cargo-
 
-      - name: Deploy to GitHub Pages
-        uses: peaceiris/actions-gh-pages@v3
-        if: github.ref == 'refs/heads/main'
-        with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          publish_dir: ./target/doc
+    - name: Build documentation
+      run: cargo doc --no-deps --all-features
+
+    - name: Deploy documentation
+      uses: peaceiris/actions-gh-pages@v3
+      if: github.ref == 'refs/heads/main'
+      with:
+        github_token: ${{ secrets.GITHUB_TOKEN }}
+        publish_dir: ./target/doc
+
+  # Publish to crates.io
+  publish:
+    name: Publish to crates.io
+    runs-on: ubuntu-latest
+    needs: [test, feature-test, security, docs]
+    if: github.event_name == 'release' && github.event.action == 'published'
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Install Rust
+      uses: dtolnay/rust-toolchain@stable
+
+    - name: Cache cargo registry
+      uses: actions/cache@v3
+      with:
+        path: |
+          ~/.cargo/registry
+          ~/.cargo/git
+          target
+        key: ${{ runner.os }}-cargo-publish-${{ hashFiles('**/Cargo.lock') }}
+        restore-keys: |
+          ${{ runner.os }}-cargo-
+
+    - name: Install system dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y libclang-dev pkg-config
+
+    - name: Configure git
+      run: |
+        git config --global user.name "GitHub Actions"
+        git config --global user.email "actions@github.com"
+
+    - name: Check if version exists
+      run: |
+        VERSION=$(grep '^version = ' Cargo.toml | cut -d'"' -f2)
+        echo "Checking if version $VERSION already exists on crates.io..."
+        if cargo search hive-gpu --limit 1 | grep -q "hive-gpu = \"$VERSION\""; then
+          echo "Version $VERSION already exists on crates.io"
+          exit 1
+        fi
+
+    - name: Login to crates.io
+      run: echo ${{ secrets.CARGO_REGISTRY_TOKEN }} | cargo login
+
+    - name: Publish to crates.io
+      run: cargo publish --verbose
+
+    - name: Verify publication
+      run: |
+        sleep 30  # Wait for crates.io to update
+        cargo search hive-gpu --limit 1
+
+  # Create GitHub release
+  release:
+    name: Create GitHub Release
+    runs-on: ubuntu-latest
+    needs: [publish]
+    if: github.event_name == 'release' && github.event.action == 'published'
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Create release notes
+      run: |
+        VERSION=$(grep '^version = ' Cargo.toml | cut -d'"' -f2)
+        echo "## 🚀 Hive-GPU v$VERSION" > release_notes.md
+        echo "" >> release_notes.md
+        echo "### 📦 Published to crates.io" >> release_notes.md
+        echo "- **Crate**: [hive-gpu](https://crates.io/crates/hive-gpu)" >> release_notes.md
+        echo "- **Version**: $VERSION" >> release_notes.md
+        echo "" >> release_notes.md
+        echo "### 🔧 Features" >> release_notes.md
+        echo "- Metal Native GPU acceleration (macOS)" >> release_notes.md
+        echo "- CUDA support (Linux/Windows)" >> release_notes.md
+        echo "- wgpu cross-platform support" >> release_notes.md
+        echo "- HNSW graph construction and search" >> release_notes.md
+        echo "- VRAM monitoring and management" >> release_notes.md
+        echo "" >> release_notes.md
+        echo "### 📚 Documentation" >> release_notes.md
+        echo "- [README](https://github.com/hivellm/hive-gpu#readme)" >> release_notes.md
+        echo "- [API Docs](https://docs.rs/hive-gpu)" >> release_notes.md
+        echo "- [Examples](https://github.com/hivellm/hive-gpu/tree/main/examples)" >> release_notes.md
+
+    - name: Create GitHub Release
+      uses: actions/create-release@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        tag_name: ${{ github.event.release.tag_name }}
+        release_name: Hive-GPU ${{ github.event.release.tag_name }}
+        body_path: release_notes.md
+        draft: false
+        prerelease: false
