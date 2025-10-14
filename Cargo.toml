@@ -1,0 +1,57 @@
+[package]
+name = "hive-gpu"
+version = "0.1.0"
+edition = "2024"
+authors = ["HiveLLM Contributors"]
+license = "MIT"
+description = "High-performance GPU acceleration for vector operations (Metal, CUDA, wgpu)"
+repository = "https://github.com/hivellm/hive-gpu"
+keywords = ["gpu", "vector-search", "hnsw", "metal", "cuda", "wgpu"]
+categories = ["hardware-support", "algorithms"]
+
+[dependencies]
+# Core dependencies
+log = "0.4"
+thiserror = "1.0"
+bytemuck = { version = "1.14", features = ["derive"] }
+half = { version = "1.8", features = ["serde"] } # For f16 support
+tracing = "0.1"
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+tokio = { version = "1.40", features = ["full"] }
+
+# Optional GPU backends
+[target.'cfg(target_os = "macos")'.dependencies]
+metal = { version = "0.27", optional = true }
+objc = { version = "0.2", optional = true }
+
+[features]
+default = ["metal-native"]
+# Pure Metal Native implementation (no wgpu dependencies)
+metal-native = ["metal", "objc"]
+# CUDA native implementation (placeholder for now)
+cuda = [] # cudarc = { version = "0.13", optional = true }
+# wgpu backend for Vulkan/DX12/Metal (placeholder for now)
+wgpu = [] # wgpu = { version = "0.18", optional = true }
+
+[dev-dependencies]
+criterion = { version = "0.5", features = ["html_reports"] }
+tempfile = "3.8"
+tokio = { version = "1.40", features = ["full"] }
+
+[[bench]]
+name = "gpu_operations"
+harness = false
+required-features = ["metal-native"]
+
+[[example]]
+name = "metal_basic"
+required-features = ["metal-native"]
+
+[[example]]
+name = "cuda_basic"
+required-features = ["cuda"]
+
+[[example]]
+name = "wgpu_basic"
+required-features = ["wgpu"]
