@@ -6,6 +6,7 @@
 use hive_gpu::{
     cuda::{CudaContext, CudaVectorStorage},
     GpuVector, GpuDistanceMetric, GpuSearchResult,
+    GpuContext,
 };
 use std::collections::HashMap;
 

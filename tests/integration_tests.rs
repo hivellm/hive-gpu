@@ -5,6 +5,7 @@
 
 use hive_gpu::{
     GpuVector, GpuDistanceMetric, GpuSearchResult, HnswConfig,
+    GpuContext, GpuBackend,
 };
 
 #[cfg(all(target_os = "macos", feature = "metal-native"))]
@@ -90,10 +91,12 @@ mod metal_tests {
         let context = MetalNativeContext::new().expect("Failed to create Metal context");
         
         let config = HnswConfig {
-            m: 16,
+            max_connections: 16,
             ef_construction: 200,
             ef_search: 50,
-            max_connections: 32,
+            max_level: 10,
+            level_multiplier: 1.0,
+            seed: Some(42),
         };
         
         let mut hnsw = context.create_storage_with_config(128, GpuDistanceMetric::Cosine, config)
@@ -124,7 +127,7 @@ mod metal_tests {
         let context = MetalNativeContext::new().expect("Failed to create Metal context");
         
         // Get initial memory stats
-        let initial_stats = context.memory_stats();
+        let initial_stats = GpuBackend::memory_stats(&context);
         assert!(initial_stats.available > 0);
         
         // Create storage and add vectors
@@ -142,7 +145,7 @@ mod metal_tests {
         storage.add_vectors(&vectors).expect("Failed to add vectors");
         
         // Check memory usage increased
-        let stats_after = context.memory_stats();
+        let stats_after = GpuBackend::memory_stats(&context);
         assert!(stats_after.total_allocated > initial_stats.total_allocated);
     }
 

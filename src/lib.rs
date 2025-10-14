@@ -27,6 +27,9 @@ pub mod metal;
 #[cfg(feature = "cuda")]
 pub mod cuda;
 
+#[cfg(feature = "wgpu")]
+pub mod wgpu;
+
 // Backend detection
 pub mod backends;
 

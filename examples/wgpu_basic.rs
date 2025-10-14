@@ -4,8 +4,7 @@
 //! for cross-platform GPU acceleration.
 
 use hive_gpu::{
-    wgpu::{WgpuContext, WgpuVectorStorage},
-    GpuVector, GpuDistanceMetric, GpuSearchResult,
+    GpuVector, GpuDistanceMetric,
 };
 use std::collections::HashMap;
 
@@ -13,9 +12,15 @@ use std::collections::HashMap;
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("🚀 Hive-GPU wgpu Basic Example");
     
-    // Create wgpu context
-    let context = WgpuContext::new()?;
-    println!("✅ wgpu context created: {}", context.device_name());
+    // Check if wgpu is available
+    #[cfg(feature = "wgpu")]
+    {
+        use hive_gpu::wgpu::{WgpuContext, WgpuVectorStorage};
+        use hive_gpu::GpuContext;
+        
+        // Create wgpu context
+        let context = WgpuContext::new()?;
+        println!("✅ wgpu context created: {}", context.device_name());
     println!("🔧 Backend: {}", context.backend());
     
     // Create vector storage
@@ -110,6 +115,16 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         println!("  {}. {} (score: {:.4})", i + 1, result.id, result.score);
     }
     
-    println!("🎉 wgpu example completed successfully!");
+        println!("🎉 wgpu example completed successfully!");
+    }
+    
+    #[cfg(not(feature = "wgpu"))]
+    {
+        println!("⚠️ wgpu is not available");
+        println!("This example requires the 'wgpu' feature enabled");
+        println!("To run this example:");
+        println!("  cargo run --example wgpu_basic --features wgpu");
+    }
+    
     Ok(())
 }

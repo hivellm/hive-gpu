@@ -16,6 +16,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     #[cfg(all(target_os = "macos", feature = "metal-native"))]
     {
         use hive_gpu::metal::{MetalNativeContext, MetalNativeVectorStorage};
+        use hive_gpu::GpuContext;
         
         // Create Metal context
         let context = MetalNativeContext::new()?;

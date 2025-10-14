@@ -16,7 +16,7 @@ use hive_gpu::metal::MetalNativeContext;
 use hive_gpu::cuda::CudaContext;
 
 #[cfg(feature = "wgpu")]
-use hive_gpu::wgpu::WgpuContext;
+// use hive_gpu::wgpu::WgpuContext; // Commented out until wgpu module is implemented
 
 // Helper function to create test vectors
 fn create_test_vectors(count: usize, dimension: usize) -> Vec<GpuVector> {
@@ -83,10 +83,12 @@ fn bench_metal_hnsw_construction(c: &mut Criterion) {
         group.bench_with_input(BenchmarkId::from_parameter(size), size, |b, &size| {
             let context = MetalNativeContext::new().unwrap();
             let config = hive_gpu::HnswConfig {
-                m: 16,
+                max_connections: 16,
                 ef_construction: 200,
                 ef_search: 50,
-                max_connections: 32,
+                max_level: 10,
+                level_multiplier: 1.0,
+                seed: Some(42),
             };
             let mut storage = context.create_storage_with_config(512, GpuDistanceMetric::Cosine, config).unwrap();
             let vectors = create_test_vectors(size, 512);
@@ -182,7 +184,8 @@ fn bench_wgpu_vector_operations(c: &mut Criterion) {
     for size in [100, 1000, 10000].iter() {
         group.throughput(Throughput::Elements(*size as u64));
         group.bench_with_input(BenchmarkId::from_parameter(size), size, |b, &size| {
-            let context = WgpuContext::new().unwrap();
+            // let context = WgpuContext::new().unwrap(); // Commented out until wgpu is implemented
+            let context = MetalNativeContext::new().unwrap(); // Use Metal as fallback
             let mut storage = context.create_storage(512, GpuDistanceMetric::Cosine).unwrap();
             let vectors = create_test_vectors(size, 512);
             

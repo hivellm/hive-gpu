@@ -102,10 +102,10 @@ impl GpuContext for WgpuContext {
     }
 
     fn memory_stats(&self) -> GpuMemoryStats {
-        self.memory_stats()
+        GpuBackend::memory_stats(self)
     }
 
     fn device_info(&self) -> GpuDeviceInfo {
-        self.device_info()
+        GpuBackend::device_info(self)
     }
 }
