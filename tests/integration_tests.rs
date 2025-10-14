@@ -5,7 +5,6 @@
 
 use hive_gpu::{
     GpuVector, GpuDistanceMetric, GpuSearchResult, HnswConfig,
-    GpuBackend, GpuVectorStorage, GpuContext,
 };
 
 #[cfg(all(target_os = "macos", feature = "metal-native"))]
@@ -270,16 +269,20 @@ mod cross_backend_tests {
     #[test]
     fn test_hnsw_config() {
         let config = HnswConfig {
-            m: 16,
+            max_connections: 16,
             ef_construction: 200,
             ef_search: 50,
-            max_connections: 32,
+            max_level: 10,
+            level_multiplier: 1.0,
+            seed: Some(42),
         };
 
-        assert_eq!(config.m, 16);
+        assert_eq!(config.max_connections, 16);
         assert_eq!(config.ef_construction, 200);
         assert_eq!(config.ef_search, 50);
-        assert_eq!(config.max_connections, 32);
+        assert_eq!(config.max_level, 10);
+        assert_eq!(config.level_multiplier, 1.0);
+        assert_eq!(config.seed, Some(42));
     }
 
     #[test]

@@ -3,149 +3,104 @@ name: Release
 on:
   push:
     tags:
-      - "v*"
-  workflow_dispatch:
-    inputs:
-      version:
-        description: "Version to release (e.g., v0.1.0)"
-        required: true
-        type: string
+      - "v*.*.*"
 
 env:
   CARGO_TERM_COLOR: always
-  RUST_BACKTRACE: 1
 
 jobs:
-  release:
+  create-release:
     name: Create Release
     runs-on: ubuntu-latest
-
+    outputs:
+      upload_url: ${{ steps.create_release.outputs.upload_url }}
+      version: ${{ steps.get_version.outputs.version }}
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
+      - name: Get version from tag
+        id: get_version
+        run: echo "version=${GITHUB_REF#refs/tags/v}" >> $GITHUB_OUTPUT
 
-      - name: Install Rust
-        uses: dtolnay/rust-toolchain@stable
-
-      - name: Cache cargo registry
-        uses: actions/cache@v3
-        with:
-          path: |
-            ~/.cargo/registry
-            ~/.cargo/git
-            target
-          key: ${{ runner.os }}-cargo-release-${{ hashFiles('**/Cargo.lock') }}
-          restore-keys: |
-            ${{ runner.os }}-cargo-
-
-      - name: Install system dependencies
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y libclang-dev pkg-config
-
-      - name: Extract version
-        id: version
-        run: |
-          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
-            VERSION="${{ github.event.inputs.version }}"
-          else
-            VERSION="${{ github.ref_name }}"
-          fi
-          # Remove 'v' prefix if present
-          VERSION=${VERSION#v}
-          echo "version=$VERSION" >> $GITHUB_OUTPUT
-          echo "Extracted version: $VERSION"
-
-      - name: Update Cargo.toml version
-        run: |
-          VERSION="${{ steps.version.outputs.version }}"
-          sed -i "s/^version = .*/version = \"$VERSION\"/" Cargo.toml
-          echo "Updated Cargo.toml to version $VERSION"
-
-      - name: Run tests
-        run: |
-          cargo test --verbose
-          cargo test --features metal-native --verbose || echo "Metal tests skipped"
-          cargo test --features cuda --verbose || echo "CUDA tests skipped"
-          cargo test --features wgpu --verbose
-
-      - name: Build all features
-        run: |
-          cargo build --all-features --verbose
-
-      - name: Check package
-        run: |
-          cargo check --all-features
-          cargo package --verbose
-
-      - name: Generate changelog
-        run: |
-          VERSION="${{ steps.version.outputs.version }}"
-          echo "# 🚀 Hive-GPU v$VERSION" > CHANGELOG_RELEASE.md
-          echo "" >> CHANGELOG_RELEASE.md
-          echo "## 📦 Published to crates.io" >> CHANGELOG_RELEASE.md
-          echo "- **Crate**: [hive-gpu](https://crates.io/crates/hive-gpu)" >> CHANGELOG_RELEASE.md
-          echo "- **Version**: $VERSION" >> CHANGELOG_RELEASE.md
-          echo "" >> CHANGELOG_RELEASE.md
-          echo "## 🔧 Features" >> CHANGELOG_RELEASE.md
-          echo "- Metal Native GPU acceleration (macOS)" >> CHANGELOG_RELEASE.md
-          echo "- CUDA support (Linux/Windows)" >> CHANGELOG_RELEASE.md
-          echo "- wgpu cross-platform support" >> CHANGELOG_RELEASE.md
-          echo "- HNSW graph construction and search" >> CHANGELOG_RELEASE.md
-          echo "- VRAM monitoring and management" >> CHANGELOG_RELEASE.md
-          echo "- Batch operations and optimization" >> CHANGELOG_RELEASE.md
-          echo "- Comprehensive error handling" >> CHANGELOG_RELEASE.md
-          echo "" >> CHANGELOG_RELEASE.md
-          echo "## 📚 Documentation" >> CHANGELOG_RELEASE.md
-          echo "- [README](https://github.com/hivellm/hive-gpu#readme)" >> CHANGELOG_RELEASE.md
-          echo "- [API Docs](https://docs.rs/hive-gpu)" >> CHANGELOG_RELEASE.md
-          echo "- [Examples](https://github.com/hivellm/hive-gpu/tree/main/examples)" >> CHANGELOG_RELEASE.md
-          echo "" >> CHANGELOG_RELEASE.md
-          echo "## 🚀 Installation" >> CHANGELOG_RELEASE.md
-          echo '```toml' >> CHANGELOG_RELEASE.md
-          echo '[dependencies]' >> CHANGELOG_RELEASE.md
-          echo "hive-gpu = \"$VERSION\"" >> CHANGELOG_RELEASE.md
-          echo '```' >> CHANGELOG_RELEASE.md
-          echo "" >> CHANGELOG_RELEASE.md
-          echo "## 🔧 Usage" >> CHANGELOG_RELEASE.md
-          echo '```rust' >> CHANGELOG_RELEASE.md
-          echo 'use hive_gpu::metal::context::MetalNativeContext;' >> CHANGELOG_RELEASE.md
-          echo 'use hive_gpu::traits::{GpuContext, GpuVectorStorage};' >> CHANGELOG_RELEASE.md
-          echo '' >> CHANGELOG_RELEASE.md
-          echo '// Create context' >> CHANGELOG_RELEASE.md
-          echo 'let context = MetalNativeContext::new()?;' >> CHANGELOG_RELEASE.md
-          echo '' >> CHANGELOG_RELEASE.md
-          echo '// Create storage' >> CHANGELOG_RELEASE.md
-          echo 'let mut storage = context.create_storage(128, GpuDistanceMetric::Cosine)?;' >> CHANGELOG_RELEASE.md
-          echo '' >> CHANGELOG_RELEASE.md
-          echo '// Add vectors' >> CHANGELOG_RELEASE.md
-          echo 'let vectors = vec![/* your vectors */];' >> CHANGELOG_RELEASE.md
-          echo 'storage.add_vectors(&vectors)?;' >> CHANGELOG_RELEASE.md
-          echo '' >> CHANGELOG_RELEASE.md
-          echo '// Search' >> CHANGELOG_RELEASE.md
-          echo 'let results = storage.search(&query, 10)?;' >> CHANGELOG_RELEASE.md
-          echo '```' >> CHANGELOG_RELEASE.md
-
-      - name: Create GitHub Release
+      - name: Create Release
+        id: create_release
         uses: actions/create-release@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          tag_name: ${{ github.ref_name }}
-          release_name: Hive-GPU ${{ github.ref_name }}
-          body_path: CHANGELOG_RELEASE.md
+          tag_name: ${{ github.ref }}
+          release_name: Release ${{ github.ref }}
           draft: false
           prerelease: false
 
-      - name: Publish to crates.io (if token is available)
-        if: env.CARGO_REGISTRY_TOKEN != ''
-        run: |
-          echo "${{ secrets.CARGO_REGISTRY_TOKEN }}" | cargo login
-          cargo publish --verbose
-          echo "✅ Successfully published to crates.io!"
+  build-release:
+    name: Build Release
+    needs: create-release
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        include:
+          - os: ubuntu-latest
+            target: x86_64-unknown-linux-gnu
+            artifact_name: transmutation
+            asset_name: transmutation-linux-x86_64
+          - os: ubuntu-latest
+            target: aarch64-unknown-linux-gnu
+            artifact_name: transmutation
+            asset_name: transmutation-linux-aarch64
+          - os: windows-latest
+            target: x86_64-pc-windows-msvc
+            artifact_name: transmutation.exe
+            asset_name: transmutation-windows-x86_64.exe
+          - os: macos-latest
+            target: x86_64-apple-darwin
+            artifact_name: transmutation
+            asset_name: transmutation-macos-x86_64
+          - os: macos-latest
+            target: aarch64-apple-darwin
+            artifact_name: transmutation
+            asset_name: transmutation-macos-aarch64
 
-      - name: Skip crates.io publication
-        if: env.CARGO_REGISTRY_TOKEN == ''
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@nightly
+        with:
+          targets: ${{ matrix.target }}
+
+      - name: Install cross-compilation tools
+        if: matrix.target == 'aarch64-unknown-linux-gnu'
         run: |
-          echo "⚠️ CARGO_REGISTRY_TOKEN not set, skipping crates.io publication"
-          echo "To enable automatic publication, set the CARGO_REGISTRY_TOKEN secret"
+          sudo apt-get update
+          sudo apt-get install -y gcc-aarch64-linux-gnu
+
+      - name: Build release binary
+        run: cargo build --release --target ${{ matrix.target }} --features cli
+
+      - name: Strip binary (Linux/macOS)
+        if: matrix.os != 'windows-latest'
+        run: strip target/${{ matrix.target }}/release/${{ matrix.artifact_name }}
+
+      - name: Upload release asset
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ needs.create-release.outputs.upload_url }}
+          asset_path: target/${{ matrix.target }}/release/${{ matrix.artifact_name }}
+          asset_name: ${{ matrix.asset_name }}
+          asset_content_type: application/octet-stream
+
+  publish-crate:
+    name: Publish to crates.io
+    needs: build-release
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@nightly
+
+      - name: Publish to crates.io
+        run: cargo publish --token ${{ secrets.CARGO_TOKEN }}

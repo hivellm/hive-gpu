@@ -4,8 +4,7 @@
 //! on Apple Silicon devices.
 
 use hive_gpu::{
-    metal::{MetalNativeContext, MetalNativeVectorStorage},
-    GpuVector, GpuDistanceMetric, GpuSearchResult,
+    GpuVector, GpuDistanceMetric,
 };
 use std::collections::HashMap;
 
@@ -13,9 +12,14 @@ use std::collections::HashMap;
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("🚀 Hive-GPU Metal Native Basic Example");
     
-    // Create Metal context
-    let context = MetalNativeContext::new()?;
-    println!("✅ Metal context created: {}", context.device_name());
+    // Check if Metal is available
+    #[cfg(all(target_os = "macos", feature = "metal-native"))]
+    {
+        use hive_gpu::metal::{MetalNativeContext, MetalNativeVectorStorage};
+        
+        // Create Metal context
+        let context = MetalNativeContext::new()?;
+        println!("✅ Metal context created: {}", context.device_name());
     
     // Create vector storage
     let mut storage = context.create_storage(512, GpuDistanceMetric::Cosine)?;
@@ -109,6 +113,16 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         println!("  {}. {} (score: {:.4})", i + 1, result.id, result.score);
     }
     
-    println!("🎉 Example completed successfully!");
+        println!("🎉 Example completed successfully!");
+    }
+    
+    #[cfg(not(all(target_os = "macos", feature = "metal-native")))]
+    {
+        println!("⚠️ Metal Native is not available on this platform");
+        println!("This example requires macOS with the 'metal-native' feature enabled");
+        println!("To run this example:");
+        println!("  cargo run --example metal_basic --features metal-native");
+    }
+    
     Ok(())
 }

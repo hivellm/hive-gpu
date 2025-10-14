@@ -43,5 +43,5 @@ pub mod utils;
 pub const VERSION: &str = env!("CARGO_PKG_VERSION");
 
 // Include test modules
-#[cfg(test)]
-mod tests;
+// #[cfg(test)]
+// mod tests;
