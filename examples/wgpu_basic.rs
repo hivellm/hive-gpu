@@ -15,7 +15,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Check if wgpu is available
     #[cfg(feature = "wgpu")]
     {
-        use hive_gpu::wgpu::{WgpuContext, WgpuVectorStorage};
+        use hive_gpu::wgpu::{WgpuContext};
         use hive_gpu::GpuContext;
         
         // Create wgpu context
