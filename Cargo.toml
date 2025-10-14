@@ -6,7 +6,7 @@ authors = ["HiveLLM Contributors"]
 license = "MIT"
 description = "High-performance GPU acceleration for vector operations (Metal, CUDA, wgpu)"
 repository = "https://github.com/hivellm/hive-gpu"
-keywords = ["gpu", "vector-search", "hnsw", "metal", "cuda", "wgpu"]
+keywords = ["gpu", "vector-search", "hnsw", "metal", "cuda"]
 categories = ["hardware-support", "algorithms"]
 
 [workspace]
