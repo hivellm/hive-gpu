@@ -3,9 +3,6 @@
 //! This example demonstrates basic usage of hive-gpu with Metal Native
 //! on Apple Silicon devices.
 
-use hive_gpu::{GpuDistanceMetric, GpuVector};
-use std::collections::HashMap;
-
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("🚀 Hive-GPU Metal Native Basic Example");
@@ -13,8 +10,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Check if Metal is available
     #[cfg(all(target_os = "macos", feature = "metal-native"))]
     {
-        use hive_gpu::GpuContext;
         use hive_gpu::metal::MetalNativeContext;
+        use hive_gpu::{GpuContext, GpuDistanceMetric, GpuVector};
+        use std::collections::HashMap;
 
         // Create Metal context
         let context = MetalNativeContext::new()?;

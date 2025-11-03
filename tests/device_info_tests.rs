@@ -2,11 +2,9 @@
 //!
 //! Tests for the GPU device information API
 
-use hive_gpu::error::HiveGpuError;
-
 #[cfg(all(target_os = "macos", feature = "metal-native"))]
 mod metal_tests {
-    use super::*;
+    use hive_gpu::error::HiveGpuError;
     use hive_gpu::metal::MetalNativeContext;
     use hive_gpu::traits::GpuContext;
 

@@ -3,12 +3,13 @@
 //! These tests verify that all components work together correctly
 //! and that the GPU operations produce expected results.
 
-use hive_gpu::{GpuBackend, GpuContext, GpuDistanceMetric, GpuSearchResult, GpuVector, HnswConfig};
+use hive_gpu::{GpuDistanceMetric, GpuSearchResult, GpuVector, HnswConfig};
 
 #[cfg(all(target_os = "macos", feature = "metal-native"))]
 mod metal_tests {
     use super::*;
     use hive_gpu::metal::MetalNativeContext;
+    use hive_gpu::{GpuBackend, GpuContext};
     use std::collections::HashMap;
 
     #[tokio::test]
@@ -216,6 +217,7 @@ mod metal_tests {
 #[cfg(feature = "cuda")]
 mod cuda_tests {
     use super::*;
+    use hive_gpu::GpuContext;
     use hive_gpu::cuda::CudaContext;
     use std::collections::HashMap;
 
@@ -249,6 +251,7 @@ mod cuda_tests {
 #[cfg(feature = "wgpu")]
 mod wgpu_tests {
     use super::*;
+    use hive_gpu::GpuContext;
     use hive_gpu::wgpu::WgpuContext;
     use std::collections::HashMap;
 
