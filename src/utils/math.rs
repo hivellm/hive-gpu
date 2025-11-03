@@ -29,10 +29,7 @@ pub mod vector_math {
             return f32::INFINITY;
         }
 
-        let sum_squares: f32 = a.iter()
-            .zip(b.iter())
-            .map(|(x, y)| (x - y).powi(2))
-            .sum();
+        let sum_squares: f32 = a.iter().zip(b.iter()).map(|(x, y)| (x - y).powi(2)).sum();
 
         sum_squares.sqrt()
     }
@@ -67,18 +64,14 @@ pub mod similarity_calculations {
     use super::*;
 
     /// Calculate similarity based on distance metric
-    pub fn calculate_similarity(
-        a: &[f32], 
-        b: &[f32], 
-        metric: GpuDistanceMetric
-    ) -> f32 {
+    pub fn calculate_similarity(a: &[f32], b: &[f32], metric: GpuDistanceMetric) -> f32 {
         match metric {
             GpuDistanceMetric::Cosine => vector_math::cosine_similarity(a, b),
             GpuDistanceMetric::Euclidean => {
                 // Convert distance to similarity (higher is better)
                 let distance = vector_math::euclidean_distance(a, b);
                 1.0 / (1.0 + distance)
-            },
+            }
             GpuDistanceMetric::DotProduct => vector_math::dot_product(a, b),
         }
     }
@@ -87,9 +80,10 @@ pub mod similarity_calculations {
     pub fn batch_similarity(
         query: &[f32],
         vectors: &[Vec<f32>],
-        metric: GpuDistanceMetric
+        metric: GpuDistanceMetric,
     ) -> Vec<f32> {
-        vectors.iter()
+        vectors
+            .iter()
             .map(|v| calculate_similarity(query, v, metric))
             .collect()
     }
@@ -99,9 +93,10 @@ pub mod similarity_calculations {
         query: &[f32],
         vectors: &[Vec<f32>],
         k: usize,
-        metric: GpuDistanceMetric
+        metric: GpuDistanceMetric,
     ) -> Vec<(usize, f32)> {
-        let similarities: Vec<(usize, f32)> = vectors.iter()
+        let similarities: Vec<(usize, f32)> = vectors
+            .iter()
             .enumerate()
             .map(|(i, v)| (i, calculate_similarity(query, v, metric)))
             .collect();

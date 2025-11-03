@@ -4,8 +4,8 @@
 //! collection for GPU operations.
 
 use crate::error::Result;
-use std::time::{Duration, Instant};
 use std::collections::HashMap;
+use std::time::{Duration, Instant};
 
 /// Performance Monitor for tracking GPU operation performance
 pub struct PerformanceMonitor {
@@ -83,21 +83,26 @@ impl PerformanceMonitor {
             self.record_operation(operation, duration);
             Ok(duration)
         } else {
-            Err(crate::error::HiveGpuError::Other("No operation in progress".to_string()))
+            Err(crate::error::HiveGpuError::Other(
+                "No operation in progress".to_string(),
+            ))
         }
     }
 
     /// Record an operation with its duration
     pub fn record_operation(&mut self, operation: String, duration: Duration) {
-        let stats = self.stats.entry(operation.clone()).or_insert(OperationStats {
-            operation: operation.clone(),
-            count: 0,
-            total_duration: Duration::ZERO,
-            avg_duration: Duration::ZERO,
-            min_duration: Duration::MAX,
-            max_duration: Duration::ZERO,
-            ops_per_second: 0.0,
-        });
+        let stats = self
+            .stats
+            .entry(operation.clone())
+            .or_insert(OperationStats {
+                operation: operation.clone(),
+                count: 0,
+                total_duration: Duration::ZERO,
+                avg_duration: Duration::ZERO,
+                min_duration: Duration::MAX,
+                max_duration: Duration::ZERO,
+                ops_per_second: 0.0,
+            });
 
         stats.count += 1;
         stats.total_duration += duration;
@@ -139,22 +144,37 @@ impl PerformanceMonitor {
     pub fn generate_report(&self) -> String {
         let stats = self.get_performance_stats();
         let mut report = String::new();
-        
+
         report.push_str("Performance Report:\n");
         report.push_str(&format!("  Total Operations: {}\n", stats.total_operations));
-        report.push_str(&format!("  Total Duration: {:.2}s\n", stats.total_duration.as_secs_f64()));
-        report.push_str(&format!("  Average Ops/sec: {:.2}\n", stats.avg_ops_per_second));
-        
+        report.push_str(&format!(
+            "  Total Duration: {:.2}s\n",
+            stats.total_duration.as_secs_f64()
+        ));
+        report.push_str(&format!(
+            "  Average Ops/sec: {:.2}\n",
+            stats.avg_ops_per_second
+        ));
+
         report.push_str("\nOperation Breakdown:\n");
         for op_stats in &stats.operation_stats {
             report.push_str(&format!("  {}:\n", op_stats.operation));
             report.push_str(&format!("    Count: {}\n", op_stats.count));
-            report.push_str(&format!("    Avg Duration: {:.2}ms\n", op_stats.avg_duration.as_secs_f64() * 1000.0));
-            report.push_str(&format!("    Min Duration: {:.2}ms\n", op_stats.min_duration.as_secs_f64() * 1000.0));
-            report.push_str(&format!("    Max Duration: {:.2}ms\n", op_stats.max_duration.as_secs_f64() * 1000.0));
+            report.push_str(&format!(
+                "    Avg Duration: {:.2}ms\n",
+                op_stats.avg_duration.as_secs_f64() * 1000.0
+            ));
+            report.push_str(&format!(
+                "    Min Duration: {:.2}ms\n",
+                op_stats.min_duration.as_secs_f64() * 1000.0
+            ));
+            report.push_str(&format!(
+                "    Max Duration: {:.2}ms\n",
+                op_stats.max_duration.as_secs_f64() * 1000.0
+            ));
             report.push_str(&format!("    Ops/sec: {:.2}\n", op_stats.ops_per_second));
         }
-        
+
         report
     }
 }

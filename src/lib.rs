@@ -6,18 +6,18 @@
 #![allow(warnings)]
 
 pub mod error;
-pub mod types;
 pub mod traits;
+pub mod types;
 
 // Re-export commonly used types
 pub use error::{HiveGpuError, Result};
-pub use types::{
-    GpuVector, GpuDistanceMetric, GpuSearchResult, GpuDeviceInfo, 
-    GpuCapabilities, GpuMemoryStats, HnswConfig, VectorMetadata
-};
 pub use traits::{
-    GpuBackend, GpuVectorStorage, GpuContext, GpuBufferManager, 
-    GpuMonitor, GpuBuffer, BufferType, BufferPoolStats, VramStats, VramBufferInfo
+    BufferPoolStats, BufferType, GpuBackend, GpuBuffer, GpuBufferManager, GpuContext, GpuMonitor,
+    GpuVectorStorage, VramBufferInfo, VramStats,
+};
+pub use types::{
+    GpuCapabilities, GpuDeviceInfo, GpuDistanceMetric, GpuMemoryStats, GpuSearchResult, GpuVector,
+    HnswConfig, VectorMetadata,
 };
 
 // Platform-specific modules

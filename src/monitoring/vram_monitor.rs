@@ -3,8 +3,8 @@
 //! This module provides VRAM usage monitoring, validation, and optimization
 //! for GPU operations.
 
-use crate::error::{Result, HiveGpuError};
-use crate::traits::{GpuMonitor, VramStats, VramBufferInfo};
+use crate::error::{HiveGpuError, Result};
+use crate::traits::{GpuMonitor, VramBufferInfo, VramStats};
 use std::collections::HashMap;
 use std::time::{SystemTime, UNIX_EPOCH};
 
@@ -32,7 +32,11 @@ impl VramMonitor {
     }
 
     /// Allocate VRAM for a buffer
-    pub fn allocate_buffer(&mut self, size: usize, buffer_type: crate::traits::BufferType) -> Result<usize> {
+    pub fn allocate_buffer(
+        &mut self,
+        size: usize,
+        buffer_type: crate::traits::BufferType,
+    ) -> Result<usize> {
         if self.allocated_vram + size > self.total_vram {
             return Err(HiveGpuError::VramLimitExceeded {
                 requested: self.allocated_vram + size,
@@ -65,7 +69,10 @@ impl VramMonitor {
             self.allocated_vram = self.allocated_vram.saturating_sub(buffer_info.size);
             Ok(())
         } else {
-            Err(HiveGpuError::Other(format!("Buffer {} not found", buffer_id)))
+            Err(HiveGpuError::Other(format!(
+                "Buffer {} not found",
+                buffer_id
+            )))
         }
     }
 
@@ -83,7 +90,7 @@ impl VramMonitor {
     /// Validate that all operations are in VRAM
     pub fn validate_all_vram(&self) -> Result<()> {
         let stats = self.get_vram_stats();
-        
+
         if stats.utilization > 0.95 {
             return Err(HiveGpuError::VramLimitExceeded {
                 requested: stats.allocated_vram,
@@ -98,14 +105,26 @@ impl VramMonitor {
     pub fn generate_vram_report(&self) -> String {
         let stats = self.get_vram_stats();
         let mut report = String::new();
-        
+
         report.push_str(&format!("VRAM Report:\n"));
-        report.push_str(&format!("  Total VRAM: {:.2} MB\n", stats.total_vram as f64 / 1024.0 / 1024.0));
-        report.push_str(&format!("  Allocated: {:.2} MB\n", stats.allocated_vram as f64 / 1024.0 / 1024.0));
-        report.push_str(&format!("  Available: {:.2} MB\n", stats.available_vram as f64 / 1024.0 / 1024.0));
-        report.push_str(&format!("  Utilization: {:.1}%\n", stats.utilization * 100.0));
+        report.push_str(&format!(
+            "  Total VRAM: {:.2} MB\n",
+            stats.total_vram as f64 / 1024.0 / 1024.0
+        ));
+        report.push_str(&format!(
+            "  Allocated: {:.2} MB\n",
+            stats.allocated_vram as f64 / 1024.0 / 1024.0
+        ));
+        report.push_str(&format!(
+            "  Available: {:.2} MB\n",
+            stats.available_vram as f64 / 1024.0 / 1024.0
+        ));
+        report.push_str(&format!(
+            "  Utilization: {:.1}%\n",
+            stats.utilization * 100.0
+        ));
         report.push_str(&format!("  Buffer Count: {}\n", stats.buffer_count));
-        
+
         // Buffer breakdown by type
         let mut type_counts: HashMap<crate::traits::BufferType, (usize, usize)> = HashMap::new();
         for buffer in self.buffers.values() {
@@ -113,13 +132,17 @@ impl VramMonitor {
             entry.0 += 1;
             entry.1 += buffer.size;
         }
-        
+
         report.push_str("\nBuffer Breakdown:\n");
         for (buffer_type, (count, size)) in type_counts {
-            report.push_str(&format!("  {:?}: {} buffers, {:.2} MB\n", 
-                buffer_type, count, size as f64 / 1024.0 / 1024.0));
+            report.push_str(&format!(
+                "  {:?}: {} buffers, {:.2} MB\n",
+                buffer_type,
+                count,
+                size as f64 / 1024.0 / 1024.0
+            ));
         }
-        
+
         report
     }
 }
@@ -157,7 +180,7 @@ impl VramValidator {
     pub fn validate_allocation(&self, size: usize) -> Result<()> {
         let stats = self.monitor.get_vram_stats();
         let new_utilization = (stats.allocated_vram + size) as f32 / stats.total_vram as f32;
-        
+
         if new_utilization > self.max_utilization {
             return Err(HiveGpuError::VramLimitExceeded {
                 requested: stats.allocated_vram + size,

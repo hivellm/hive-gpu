@@ -3,10 +3,10 @@
 //! Unified wgpu context for all wgpu operations.
 //! This module provides a single source of truth for wgpu device and queue management.
 
-use crate::error::{Result, HiveGpuError};
-use crate::types::{GpuDeviceInfo, GpuCapabilities, GpuMemoryStats};
+use crate::error::{HiveGpuError, Result};
 use crate::traits::{GpuBackend, GpuContext};
-use tracing::{info, debug};
+use crate::types::{GpuCapabilities, GpuDeviceInfo, GpuMemoryStats};
+use tracing::{debug, info};
 
 /// wgpu Context - Single source of truth
 #[cfg(feature = "wgpu")]
@@ -26,31 +26,31 @@ impl WgpuContext {
         let device_name = "wgpu GPU".to_string();
         let backend = "Vulkan".to_string(); // Example backend
         let total_memory = 1024 * 1024 * 1024; // 1GB placeholder
-        
+
         debug!("✅ wgpu context created: {} ({})", device_name, backend);
-        
+
         Ok(Self {
             device_name,
             backend,
             total_memory,
         })
     }
-    
+
     /// Get device name
     pub fn device_name(&self) -> String {
         self.device_name.clone()
     }
-    
+
     /// Get backend name
     pub fn backend(&self) -> String {
         self.backend.clone()
     }
-    
+
     /// Get total memory
     pub fn total_memory(&self) -> u64 {
         self.total_memory
     }
-    
+
     /// Check if device supports required features
     pub fn supports_required_features(&self) -> bool {
         // Check wgpu features and limits
@@ -60,12 +60,22 @@ impl WgpuContext {
 
 impl GpuBackend for WgpuContext {
     fn device_info(&self) -> GpuDeviceInfo {
+        let total_vram = self.total_memory();
+        let used_vram = 0; // Placeholder
+        let available_vram = total_vram.saturating_sub(used_vram);
+
         GpuDeviceInfo {
             name: self.device_name(),
-            device_type: "wgpu".to_string(),
-            memory_bytes: self.total_memory(),
-            max_buffer_size: self.total_memory(),
-            compute_capability: Some(self.backend()),
+            backend: "wgpu".to_string(),
+            total_vram_bytes: total_vram,
+            available_vram_bytes: available_vram,
+            used_vram_bytes: used_vram,
+            driver_version: "wgpu".to_string(),
+            compute_capability: None,
+            max_threads_per_block: 256,
+            max_shared_memory_per_block: 16384,
+            device_id: 0,
+            pci_bus_id: None,
         }
     }
 
@@ -91,12 +101,21 @@ impl GpuBackend for WgpuContext {
 }
 
 impl GpuContext for WgpuContext {
-    fn create_storage(&self, dimension: usize, metric: crate::types::GpuDistanceMetric) -> Result<Box<dyn crate::traits::GpuVectorStorage>> {
+    fn create_storage(
+        &self,
+        dimension: usize,
+        metric: crate::types::GpuDistanceMetric,
+    ) -> Result<Box<dyn crate::traits::GpuVectorStorage>> {
         // This will be implemented when we migrate vector_storage.rs
         Err(HiveGpuError::Other("Not implemented yet".to_string()))
     }
 
-    fn create_storage_with_config(&self, dimension: usize, metric: crate::types::GpuDistanceMetric, config: crate::types::HnswConfig) -> Result<Box<dyn crate::traits::GpuVectorStorage>> {
+    fn create_storage_with_config(
+        &self,
+        dimension: usize,
+        metric: crate::types::GpuDistanceMetric,
+        config: crate::types::HnswConfig,
+    ) -> Result<Box<dyn crate::traits::GpuVectorStorage>> {
         // This will be implemented when we migrate vector_storage.rs
         Err(HiveGpuError::Other("Not implemented yet".to_string()))
     }
@@ -105,7 +124,7 @@ impl GpuContext for WgpuContext {
         GpuBackend::memory_stats(self)
     }
 
-    fn device_info(&self) -> GpuDeviceInfo {
-        GpuBackend::device_info(self)
+    fn device_info(&self) -> Result<GpuDeviceInfo> {
+        Ok(GpuBackend::device_info(self))
     }
 }

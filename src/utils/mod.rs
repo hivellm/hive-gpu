@@ -4,6 +4,6 @@ pub mod math;
 pub mod memory;
 pub mod timing;
 
-pub use math::{vector_math, similarity_calculations};
-pub use memory::{memory_utils, buffer_utils};
-pub use timing::{timing_utils, performance_utils};
+pub use math::{similarity_calculations, vector_math};
+pub use memory::{buffer_utils, memory_utils};
+pub use timing::{performance_utils, timing_utils};

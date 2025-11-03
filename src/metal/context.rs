@@ -3,12 +3,13 @@
 //! Unified Metal context for all Metal Native operations.
 //! This module provides a single source of truth for Metal device and command queue management.
 
-use metal::{Device as MetalDevice, CommandQueue, MTLGPUFamily, MTLSize, Library};
-use std::sync::Arc;
 use crate::error::{HiveGpuError, Result};
-use crate::types::{GpuDeviceInfo, GpuCapabilities, GpuMemoryStats};
 use crate::traits::{GpuBackend, GpuContext};
-use tracing::{info, debug};
+use crate::types::{GpuCapabilities, GpuDeviceInfo, GpuMemoryStats};
+use metal::{CommandQueue, Device as MetalDevice, Library, MTLGPUFamily, MTLSize};
+use std::process::Command;
+use std::sync::Arc;
+use tracing::{debug, info, warn};
 
 /// Metal Native Context - Single source of truth
 #[cfg(all(target_os = "macos", feature = "metal-native"))]
@@ -23,8 +24,8 @@ pub struct MetalNativeContext {
 impl MetalNativeContext {
     /// Create new Metal native context
     pub fn new() -> Result<Self> {
-        let device = MetalDevice::system_default()
-            .ok_or_else(|| HiveGpuError::NoDeviceAvailable)?;
+        let device =
+            MetalDevice::system_default().ok_or_else(|| HiveGpuError::NoDeviceAvailable)?;
 
         let command_queue = device.new_command_queue();
 
@@ -39,34 +40,34 @@ impl MetalNativeContext {
             library,
         })
     }
-    
+
     /// Get Metal device
     pub fn device(&self) -> &MetalDevice {
         &self.device
     }
-    
+
     /// Get command queue
     pub fn command_queue(&self) -> &CommandQueue {
         &self.command_queue
     }
-    
+
     /// Get device name
     pub fn device_name(&self) -> String {
         self.device.name().to_string()
     }
-    
+
     /// Check if device supports Metal Performance Shaders
     pub fn supports_mps(&self) -> bool {
         // Check if device supports MPS (Metal Performance Shaders)
         // This is a simplified check - in practice you'd check specific MPS features
         self.device.supports_family(MTLGPUFamily::Apple7)
     }
-    
+
     /// Get maximum threadgroup size for compute shaders
     pub fn max_threadgroup_size(&self) -> MTLSize {
         self.device.max_threads_per_threadgroup()
     }
-    
+
     /// Get maximum buffer size
     pub fn max_buffer_size(&self) -> u64 {
         // Most Metal devices support very large buffers
@@ -85,22 +86,73 @@ impl MetalNativeContext {
         let shader_source = include_str!("../shaders/metal_hnsw.metal");
 
         let options = metal::CompileOptions::new();
-        let library = device.new_library_with_source(shader_source, &options)
-            .map_err(|e| HiveGpuError::ShaderCompilationFailed(format!("Failed to compile Metal shaders: {:?}", e)))?;
+        let library = device
+            .new_library_with_source(shader_source, &options)
+            .map_err(|e| {
+                HiveGpuError::ShaderCompilationFailed(format!(
+                    "Failed to compile Metal shaders: {:?}",
+                    e
+                ))
+            })?;
 
-        debug!("✅ Metal library loaded with {} functions", library.function_names().len());
+        debug!(
+            "✅ Metal library loaded with {} functions",
+            library.function_names().len()
+        );
         Ok(library)
+    }
+
+    /// Get macOS version as driver version
+    fn get_macos_version() -> Result<String> {
+        let output = Command::new("sw_vers")
+            .arg("-productVersion")
+            .output()
+            .map_err(|e| {
+                HiveGpuError::Other(format!("Failed to execute sw_vers command: {}", e))
+            })?;
+
+        if output.status.success() {
+            let version = String::from_utf8_lossy(&output.stdout).trim().to_string();
+            Ok(format!("macOS {}", version))
+        } else {
+            warn!("Failed to get macOS version, using fallback");
+            Ok("macOS Unknown".to_string())
+        }
     }
 }
 
 impl GpuBackend for MetalNativeContext {
     fn device_info(&self) -> GpuDeviceInfo {
+        // Get VRAM information
+        let recommended_max = self.device.recommended_max_working_set_size();
+        let current_allocated = self.device.current_allocated_size();
+        let available = recommended_max.saturating_sub(current_allocated);
+
+        // Get macOS version
+        let driver_version =
+            Self::get_macos_version().unwrap_or_else(|_| "macOS Unknown".to_string());
+
+        // Get max threadgroup size
+        let max_threads = self.device.max_threads_per_threadgroup();
+        let max_threads_per_block =
+            (max_threads.width * max_threads.height * max_threads.depth) as u32;
+
+        // Max shared memory per threadgroup (LDS on Apple Silicon)
+        // Apple Silicon typically has 32KB per threadgroup
+        let max_shared_memory = 32 * 1024; // 32 KB
+
         GpuDeviceInfo {
             name: self.device_name(),
-            device_type: "Metal".to_string(),
-            memory_bytes: self.max_buffer_size(),
-            max_buffer_size: self.max_buffer_size(),
-            compute_capability: Some(format!("Apple{}", self.device.supports_family(MTLGPUFamily::Apple7) as u8 + 6)),
+            backend: "Metal".to_string(),
+            total_vram_bytes: recommended_max,
+            available_vram_bytes: available,
+            used_vram_bytes: current_allocated,
+            driver_version,
+            compute_capability: None, // Metal doesn't expose compute capability like CUDA
+            max_threads_per_block,
+            max_shared_memory_per_block: max_shared_memory,
+            device_id: 0,     // Metal doesn't expose device IDs for Apple Silicon
+            pci_bus_id: None, // Metal doesn't expose PCI bus for Apple Silicon
         }
     }
 
@@ -126,13 +178,22 @@ impl GpuBackend for MetalNativeContext {
 }
 
 impl GpuContext for MetalNativeContext {
-    fn create_storage(&self, dimension: usize, metric: crate::types::GpuDistanceMetric) -> Result<Box<dyn crate::traits::GpuVectorStorage>> {
+    fn create_storage(
+        &self,
+        dimension: usize,
+        metric: crate::types::GpuDistanceMetric,
+    ) -> Result<Box<dyn crate::traits::GpuVectorStorage>> {
         use crate::metal::vector_storage::MetalNativeVectorStorage;
         let storage = MetalNativeVectorStorage::new(Arc::new(self.clone()), dimension, metric)?;
         Ok(Box::new(storage))
     }
 
-    fn create_storage_with_config(&self, dimension: usize, metric: crate::types::GpuDistanceMetric, config: crate::types::HnswConfig) -> Result<Box<dyn crate::traits::GpuVectorStorage>> {
+    fn create_storage_with_config(
+        &self,
+        dimension: usize,
+        metric: crate::types::GpuDistanceMetric,
+        config: crate::types::HnswConfig,
+    ) -> Result<Box<dyn crate::traits::GpuVectorStorage>> {
         // This will be implemented when we migrate vector_storage.rs
         Err(HiveGpuError::Other("Not implemented yet".to_string()))
     }
@@ -141,7 +202,7 @@ impl GpuContext for MetalNativeContext {
         GpuBackend::memory_stats(self)
     }
 
-    fn device_info(&self) -> GpuDeviceInfo {
-        GpuBackend::device_info(self)
+    fn device_info(&self) -> Result<GpuDeviceInfo> {
+        Ok(GpuBackend::device_info(self))
     }
 }

@@ -3,15 +3,12 @@
 //! These tests verify that all components work together correctly
 //! and that the GPU operations produce expected results.
 
-use hive_gpu::{
-    GpuVector, GpuDistanceMetric, GpuSearchResult, HnswConfig,
-    GpuContext, GpuBackend,
-};
+use hive_gpu::{GpuBackend, GpuContext, GpuDistanceMetric, GpuSearchResult, GpuVector, HnswConfig};
 
 #[cfg(all(target_os = "macos", feature = "metal-native"))]
 mod metal_tests {
     use super::*;
-    use hive_gpu::metal::{MetalNativeContext, MetalNativeVectorStorage};
+    use hive_gpu::metal::MetalNativeContext;
     use std::collections::HashMap;
 
     #[tokio::test]
@@ -19,9 +16,11 @@ mod metal_tests {
         // Skip test if Metal is not fully implemented yet
         println!("⚠️ Metal tests skipped - module not fully implemented yet");
         return;
-        
+
+        #[allow(unreachable_code)]
         let context = MetalNativeContext::new().expect("Failed to create Metal context");
-        let mut storage = context.create_storage(128, GpuDistanceMetric::Cosine)
+        let mut storage = context
+            .create_storage(128, GpuDistanceMetric::Cosine)
             .expect("Failed to create storage");
 
         // Create test vectors
@@ -34,7 +33,9 @@ mod metal_tests {
             .collect();
 
         // Add vectors
-        let indices = storage.add_vectors(&vectors).expect("Failed to add vectors");
+        let indices = storage
+            .add_vectors(&vectors)
+            .expect("Failed to add vectors");
         assert_eq!(indices.len(), 100);
         assert_eq!(storage.vector_count(), 100);
 
@@ -45,7 +46,7 @@ mod metal_tests {
 
         // Verify results are sorted by similarity
         for i in 1..results.len() {
-            assert!(results[i-1].score <= results[i].score);
+            assert!(results[i - 1].score <= results[i].score);
         }
 
         // Test vector retrieval
@@ -54,7 +55,9 @@ mod metal_tests {
         assert_eq!(retrieved.unwrap().id, "vec_50");
 
         // Test vector removal
-        storage.remove_vectors(&["vec_50".to_string()]).expect("Failed to remove vector");
+        storage
+            .remove_vectors(&["vec_50".to_string()])
+            .expect("Failed to remove vector");
         let retrieved_after_removal = storage.get_vector("vec_50").expect("Failed to get vector");
         assert!(retrieved_after_removal.is_none());
     }
@@ -62,11 +65,12 @@ mod metal_tests {
     #[tokio::test]
     async fn test_metal_distance_metrics() {
         let context = MetalNativeContext::new().expect("Failed to create Metal context");
-        
+
         // Test Cosine similarity
-        let mut cosine_storage = context.create_storage(3, GpuDistanceMetric::Cosine)
+        let mut cosine_storage = context
+            .create_storage(3, GpuDistanceMetric::Cosine)
             .expect("Failed to create cosine storage");
-        
+
         let vectors = vec![
             GpuVector {
                 id: "vec1".to_string(),
@@ -79,12 +83,14 @@ mod metal_tests {
                 metadata: HashMap::new(),
             },
         ];
-        
-        cosine_storage.add_vectors(&vectors).expect("Failed to add vectors");
-        
+
+        cosine_storage
+            .add_vectors(&vectors)
+            .expect("Failed to add vectors");
+
         let query = vec![1.0, 0.0, 0.0];
         let results = cosine_storage.search(&query, 2).expect("Failed to search");
-        
+
         // vec1 should be most similar (cosine similarity = 1.0)
         assert_eq!(results[0].id, "vec1");
         assert!((results[0].score - 1.0).abs() < 0.001);
@@ -95,9 +101,10 @@ mod metal_tests {
         // Skip test if Metal is not fully implemented yet
         println!("⚠️ Metal HNSW tests skipped - module not fully implemented yet");
         return;
-        
+
+        #[allow(unreachable_code)]
         let context = MetalNativeContext::new().expect("Failed to create Metal context");
-        
+
         let config = HnswConfig {
             max_connections: 16,
             ef_construction: 200,
@@ -106,10 +113,11 @@ mod metal_tests {
             level_multiplier: 1.0,
             seed: Some(42),
         };
-        
-        let mut hnsw = context.create_storage_with_config(128, GpuDistanceMetric::Cosine, config)
+
+        let mut hnsw = context
+            .create_storage_with_config(128, GpuDistanceMetric::Cosine, config)
             .expect("Failed to create HNSW storage");
-        
+
         // Create vectors for HNSW construction
         let vectors: Vec<GpuVector> = (0..1000)
             .map(|i| GpuVector {
@@ -118,13 +126,14 @@ mod metal_tests {
                 metadata: HashMap::new(),
             })
             .collect();
-        
-        hnsw.add_vectors(&vectors).expect("Failed to add vectors to HNSW");
-        
+
+        hnsw.add_vectors(&vectors)
+            .expect("Failed to add vectors to HNSW");
+
         // Test HNSW search
         let query = vec![500.0; 128];
         let results = hnsw.search(&query, 10).expect("Failed to search HNSW");
-        
+
         assert_eq!(results.len(), 10);
         // Results should be well-distributed around the query
         assert!(results.iter().any(|r| r.id.contains("500")));
@@ -135,17 +144,19 @@ mod metal_tests {
         // Skip test if Metal is not fully implemented yet
         println!("⚠️ Metal VRAM tests skipped - module not fully implemented yet");
         return;
-        
+
+        #[allow(unreachable_code)]
         let context = MetalNativeContext::new().expect("Failed to create Metal context");
-        
+
         // Get initial memory stats
         let initial_stats = GpuBackend::memory_stats(&context);
         assert!(initial_stats.available > 0);
-        
+
         // Create storage and add vectors
-        let mut storage = context.create_storage(512, GpuDistanceMetric::Cosine)
+        let mut storage = context
+            .create_storage(512, GpuDistanceMetric::Cosine)
             .expect("Failed to create storage");
-        
+
         let vectors: Vec<GpuVector> = (0..1000)
             .map(|i| GpuVector {
                 id: format!("vram_vec_{}", i),
@@ -153,9 +164,11 @@ mod metal_tests {
                 metadata: HashMap::new(),
             })
             .collect();
-        
-        storage.add_vectors(&vectors).expect("Failed to add vectors");
-        
+
+        storage
+            .add_vectors(&vectors)
+            .expect("Failed to add vectors");
+
         // Check memory usage increased
         let stats_after = GpuBackend::memory_stats(&context);
         assert!(stats_after.total_allocated > initial_stats.total_allocated);
@@ -164,34 +177,37 @@ mod metal_tests {
     #[tokio::test]
     async fn test_metal_error_handling() {
         let context = MetalNativeContext::new().expect("Failed to create Metal context");
-        
+
         // Test dimension mismatch
-        let mut storage = context.create_storage(128, GpuDistanceMetric::Cosine)
+        let mut storage = context
+            .create_storage(128, GpuDistanceMetric::Cosine)
             .expect("Failed to create storage");
-        
+
         let wrong_dimension_vector = GpuVector {
             id: "wrong_dim".to_string(),
             data: vec![1.0; 64], // Wrong dimension
             metadata: HashMap::new(),
         };
-        
+
         let result = storage.add_vectors(&[wrong_dimension_vector]);
         assert!(result.is_err());
-        
+
         // Test duplicate ID
         let vector1 = GpuVector {
             id: "duplicate".to_string(),
             data: vec![1.0; 128],
             metadata: HashMap::new(),
         };
-        
+
         let vector2 = GpuVector {
             id: "duplicate".to_string(), // Same ID
             data: vec![2.0; 128],
             metadata: HashMap::new(),
         };
-        
-        storage.add_vectors(&[vector1]).expect("Failed to add first vector");
+
+        storage
+            .add_vectors(&[vector1])
+            .expect("Failed to add first vector");
         let result = storage.add_vectors(&[vector2]);
         assert!(result.is_err());
     }
@@ -200,7 +216,7 @@ mod metal_tests {
 #[cfg(feature = "cuda")]
 mod cuda_tests {
     use super::*;
-    use hive_gpu::cuda::{CudaContext, CudaVectorStorage};
+    use hive_gpu::cuda::CudaContext;
     use std::collections::HashMap;
 
     #[tokio::test]
@@ -208,21 +224,23 @@ mod cuda_tests {
         // Skip test if CUDA is not implemented yet
         println!("⚠️ CUDA tests skipped - module not fully implemented yet");
         return;
-        
+
+        #[allow(unreachable_code)]
         let context = CudaContext::new().expect("Failed to create CUDA context");
-        let mut storage = context.create_storage(128, GpuDistanceMetric::Cosine)
+        let mut storage = context
+            .create_storage(128, GpuDistanceMetric::Cosine)
             .expect("Failed to create storage");
 
         // Test basic operations (placeholder implementation)
-        let vectors = vec![
-            GpuVector {
-                id: "cuda_vec1".to_string(),
-                data: vec![1.0; 128],
-                metadata: HashMap::new(),
-            },
-        ];
+        let vectors = vec![GpuVector {
+            id: "cuda_vec1".to_string(),
+            data: vec![1.0; 128],
+            metadata: HashMap::new(),
+        }];
 
-        let indices = storage.add_vectors(&vectors).expect("Failed to add vectors");
+        let indices = storage
+            .add_vectors(&vectors)
+            .expect("Failed to add vectors");
         assert_eq!(indices.len(), 1);
         assert_eq!(storage.vector_count(), 1);
     }
@@ -231,7 +249,7 @@ mod cuda_tests {
 #[cfg(feature = "wgpu")]
 mod wgpu_tests {
     use super::*;
-    use hive_gpu::wgpu::{WgpuContext};
+    use hive_gpu::wgpu::WgpuContext;
     use std::collections::HashMap;
 
     #[tokio::test]
@@ -239,21 +257,23 @@ mod wgpu_tests {
         // Skip test if wgpu is not implemented yet
         println!("⚠️ wgpu tests skipped - module not fully implemented yet");
         return;
-        
+
+        #[allow(unreachable_code)]
         let context = WgpuContext::new().expect("Failed to create wgpu context");
-        let mut storage = context.create_storage(128, GpuDistanceMetric::Cosine)
+        let mut storage = context
+            .create_storage(128, GpuDistanceMetric::Cosine)
             .expect("Failed to create storage");
 
         // Test basic operations (placeholder implementation)
-        let vectors = vec![
-            GpuVector {
-                id: "wgpu_vec1".to_string(),
-                data: vec![1.0; 128],
-                metadata: HashMap::new(),
-            },
-        ];
+        let vectors = vec![GpuVector {
+            id: "wgpu_vec1".to_string(),
+            data: vec![1.0; 128],
+            metadata: HashMap::new(),
+        }];
 
-        let indices = storage.add_vectors(&vectors).expect("Failed to add vectors");
+        let indices = storage
+            .add_vectors(&vectors)
+            .expect("Failed to add vectors");
         assert_eq!(indices.len(), 1);
         assert_eq!(storage.vector_count(), 1);
     }

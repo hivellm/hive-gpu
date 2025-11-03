@@ -2,7 +2,7 @@
 //!
 //! This module provides loading and management of WGSL shaders for cross-platform GPU operations.
 
-use crate::error::{Result, HiveGpuError};
+use crate::error::{HiveGpuError, Result};
 
 /// WGSL shader manager for loading and compiling WGSL shaders
 pub struct WgslShaderManager {
@@ -31,16 +31,34 @@ impl WgslShaderManager {
     /// Load WGSL shaders from embedded sources
     fn load_wgsl_shaders() -> std::collections::HashMap<String, String> {
         let mut shaders = std::collections::HashMap::new();
-        
+
         // Load individual WGSL shaders
         // These will be populated when we migrate the shaders from vectorizer
-        shaders.insert("similarity".to_string(), include_str!("../shaders/similarity.wgsl").to_string());
-        shaders.insert("distance".to_string(), include_str!("../shaders/distance.wgsl").to_string());
-        shaders.insert("dot_product".to_string(), include_str!("../shaders/dot_product.wgsl").to_string());
-        shaders.insert("hnsw_construction".to_string(), include_str!("../shaders/hnsw_construction.wgsl").to_string());
-        shaders.insert("hnsw_navigation".to_string(), include_str!("../shaders/hnsw_navigation.wgsl").to_string());
-        shaders.insert("batch_construction".to_string(), include_str!("../shaders/batch_construction.wgsl").to_string());
-        
+        shaders.insert(
+            "similarity".to_string(),
+            include_str!("../shaders/similarity.wgsl").to_string(),
+        );
+        shaders.insert(
+            "distance".to_string(),
+            include_str!("../shaders/distance.wgsl").to_string(),
+        );
+        shaders.insert(
+            "dot_product".to_string(),
+            include_str!("../shaders/dot_product.wgsl").to_string(),
+        );
+        shaders.insert(
+            "hnsw_construction".to_string(),
+            include_str!("../shaders/hnsw_construction.wgsl").to_string(),
+        );
+        shaders.insert(
+            "hnsw_navigation".to_string(),
+            include_str!("../shaders/hnsw_navigation.wgsl").to_string(),
+        );
+        shaders.insert(
+            "batch_construction".to_string(),
+            include_str!("../shaders/batch_construction.wgsl").to_string(),
+        );
+
         shaders
     }
 
@@ -48,16 +66,21 @@ impl WgslShaderManager {
     pub fn validate_all_shaders(&self) -> Result<()> {
         for (name, source) in &self.shader_sources {
             if source.is_empty() {
-                return Err(HiveGpuError::ShaderCompilationFailed(
-                    format!("Empty shader source for: {}", name)
-                ));
+                return Err(HiveGpuError::ShaderCompilationFailed(format!(
+                    "Empty shader source for: {}",
+                    name
+                )));
             }
 
             // Basic WGSL validation
-            if !source.contains("@compute") && !source.contains("@vertex") && !source.contains("@fragment") {
-                return Err(HiveGpuError::ShaderCompilationFailed(
-                    format!("Invalid WGSL shader: {} (missing entry point)", name)
-                ));
+            if !source.contains("@compute")
+                && !source.contains("@vertex")
+                && !source.contains("@fragment")
+            {
+                return Err(HiveGpuError::ShaderCompilationFailed(format!(
+                    "Invalid WGSL shader: {} (missing entry point)",
+                    name
+                )));
             }
         }
 

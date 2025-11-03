@@ -64,10 +64,7 @@ pub mod performance_utils {
     }
 
     /// Calculate efficiency (actual vs theoretical performance)
-    pub fn calculate_efficiency(
-        actual_throughput: f64,
-        theoretical_throughput: f64
-    ) -> f32 {
+    pub fn calculate_efficiency(actual_throughput: f64, theoretical_throughput: f64) -> f32 {
         if theoretical_throughput > 0.0 {
             (actual_throughput / theoretical_throughput) as f32
         } else {
@@ -79,7 +76,7 @@ pub mod performance_utils {
     pub fn benchmark_function<F, R>(
         f: F,
         iterations: usize,
-        warmup_iterations: usize
+        warmup_iterations: usize,
     ) -> BenchmarkResult
     where
         F: Fn() -> R,

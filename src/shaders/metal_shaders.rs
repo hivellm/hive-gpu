@@ -2,7 +2,7 @@
 //!
 //! This module provides loading and management of Metal shaders for Apple Silicon.
 
-use crate::error::{Result, HiveGpuError};
+use crate::error::{HiveGpuError, Result};
 
 /// Metal shader manager for loading and compiling Metal shaders
 pub struct MetalShaderManager {
@@ -33,23 +33,26 @@ impl MetalShaderManager {
     /// Validate shader source
     pub fn validate_shader(&self) -> Result<()> {
         if self.shader_source.is_empty() {
-            return Err(HiveGpuError::ShaderCompilationFailed("Empty shader source".to_string()));
+            return Err(HiveGpuError::ShaderCompilationFailed(
+                "Empty shader source".to_string(),
+            ));
         }
 
         // Basic validation - check for required functions
         let required_functions = [
             "cosine_similarity",
-            "euclidean_distance", 
+            "euclidean_distance",
             "dot_product",
             "hnsw_construction",
-            "hnsw_search"
+            "hnsw_search",
         ];
 
         for function in &required_functions {
             if !self.shader_source.contains(function) {
-                return Err(HiveGpuError::ShaderCompilationFailed(
-                    format!("Missing required function: {}", function)
-                ));
+                return Err(HiveGpuError::ShaderCompilationFailed(format!(
+                    "Missing required function: {}",
+                    function
+                )));
             }
         }
 

@@ -1,16 +1,19 @@
 //! Core traits for Hive GPU
 
-use crate::types::{GpuVector, GpuSearchResult, GpuDistanceMetric, GpuDeviceInfo, GpuCapabilities, GpuMemoryStats, HnswConfig};
 use crate::error::Result;
+use crate::types::{
+    GpuCapabilities, GpuDeviceInfo, GpuDistanceMetric, GpuMemoryStats, GpuSearchResult, GpuVector,
+    HnswConfig,
+};
 
 /// Core GPU backend trait
 pub trait GpuBackend {
     /// Get device information
     fn device_info(&self) -> GpuDeviceInfo;
-    
+
     /// Get device capabilities
     fn supports_operations(&self) -> GpuCapabilities;
-    
+
     /// Get memory statistics
     fn memory_stats(&self) -> GpuMemoryStats;
 }
@@ -19,22 +22,22 @@ pub trait GpuBackend {
 pub trait GpuVectorStorage {
     /// Add vectors to storage
     fn add_vectors(&mut self, vectors: &[GpuVector]) -> Result<Vec<usize>>;
-    
+
     /// Search for similar vectors
     fn search(&self, query: &[f32], limit: usize) -> Result<Vec<GpuSearchResult>>;
-    
+
     /// Remove vectors by IDs
     fn remove_vectors(&mut self, ids: &[String]) -> Result<()>;
-    
+
     /// Get total vector count
     fn vector_count(&self) -> usize;
-    
+
     /// Get vector dimension
     fn dimension(&self) -> usize;
-    
+
     /// Get vector by ID
     fn get_vector(&self, id: &str) -> Result<Option<GpuVector>>;
-    
+
     /// Clear all vectors
     fn clear(&mut self) -> Result<()>;
 }
@@ -42,26 +45,58 @@ pub trait GpuVectorStorage {
 /// GPU context trait for creating storage
 pub trait GpuContext {
     /// Create vector storage with default configuration
-    fn create_storage(&self, dimension: usize, metric: GpuDistanceMetric) -> Result<Box<dyn GpuVectorStorage>>;
-    
+    fn create_storage(
+        &self,
+        dimension: usize,
+        metric: GpuDistanceMetric,
+    ) -> Result<Box<dyn GpuVectorStorage>>;
+
     /// Create vector storage with HNSW configuration
-    fn create_storage_with_config(&self, dimension: usize, metric: GpuDistanceMetric, config: HnswConfig) -> Result<Box<dyn GpuVectorStorage>>;
-    
+    fn create_storage_with_config(
+        &self,
+        dimension: usize,
+        metric: GpuDistanceMetric,
+        config: HnswConfig,
+    ) -> Result<Box<dyn GpuVectorStorage>>;
+
     /// Get memory statistics
     fn memory_stats(&self) -> GpuMemoryStats;
-    
+
     /// Get device information
-    fn device_info(&self) -> GpuDeviceInfo;
+    ///
+    /// Returns detailed information about the GPU device including name,
+    /// VRAM statistics, compute capabilities, and backend-specific details.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if device information cannot be queried.
+    ///
+    /// # Examples
+    ///
+    /// ```no_run
+    /// use hive_gpu::metal::MetalNativeContext;
+    /// use hive_gpu::traits::GpuContext;
+    ///
+    /// let context = MetalNativeContext::new()?;
+    /// let info = context.device_info()?;
+    ///
+    /// println!("Device: {} ({})", info.name, info.backend);
+    /// println!("Total VRAM: {} MB", info.total_vram_mb());
+    /// println!("Available VRAM: {} MB", info.available_vram_mb());
+    /// println!("Usage: {:.1}%", info.vram_usage_percent());
+    /// # Ok::<(), hive_gpu::error::HiveGpuError>(())
+    /// ```
+    fn device_info(&self) -> Result<GpuDeviceInfo>;
 }
 
 /// GPU buffer management trait
 pub trait GpuBufferManager {
     /// Allocate buffer with specified size
     fn allocate_buffer(&mut self, size: usize) -> Result<GpuBuffer>;
-    
+
     /// Deallocate buffer
     fn deallocate_buffer(&mut self, buffer: GpuBuffer) -> Result<()>;
-    
+
     /// Get buffer pool statistics
     fn pool_stats(&self) -> BufferPoolStats;
 }
@@ -107,10 +142,10 @@ pub struct BufferPoolStats {
 pub trait GpuMonitor {
     /// Get VRAM usage statistics
     fn get_vram_stats(&self) -> VramStats;
-    
+
     /// Validate VRAM-only operation
     fn validate_all_vram(&self) -> Result<()>;
-    
+
     /// Generate VRAM report
     fn generate_vram_report(&self) -> String;
 }

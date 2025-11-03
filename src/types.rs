@@ -80,18 +80,175 @@ pub struct GpuSearchResult {
 }
 
 /// GPU device information
+///
+/// Provides detailed information about the GPU device including memory,
+/// capabilities, and backend-specific details.
+///
+/// # Examples
+///
+/// ```no_run
+/// use hive_gpu::metal::MetalNativeContext;
+/// use hive_gpu::traits::GpuContext;
+///
+/// let context = MetalNativeContext::new().expect("Failed to create Metal context");
+/// let info = context.device_info().expect("Failed to get device info");
+///
+/// println!("Device: {}", info.name);
+/// println!("Backend: {}", info.backend);
+/// println!("VRAM: {} MB", info.total_vram_bytes / 1024 / 1024);
+/// println!("Usage: {:.1}%", info.vram_usage_percent());
+/// ```
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct GpuDeviceInfo {
-    /// Device name
+    /// Device name (e.g., "Apple M2 Pro", "NVIDIA RTX 4090")
     pub name: String,
-    /// Device type (Metal, CUDA, etc.)
-    pub device_type: String,
-    /// Available memory in bytes
-    pub memory_bytes: u64,
-    /// Maximum buffer size
-    pub max_buffer_size: u64,
-    /// Compute capability
+
+    /// Backend type (e.g., "Metal", "CUDA", "ROCm")
+    pub backend: String,
+
+    /// Total VRAM in bytes
+    pub total_vram_bytes: u64,
+
+    /// Currently available VRAM in bytes
+    pub available_vram_bytes: u64,
+
+    /// Currently used VRAM in bytes (calculated as total - available)
+    pub used_vram_bytes: u64,
+
+    /// Driver version string (e.g., "macOS 14.1", "CUDA 12.0", "ROCm 5.4")
+    pub driver_version: String,
+
+    /// Compute capability or architecture version
+    /// - Metal: None
+    /// - CUDA: e.g., "8.9" for sm_89
+    /// - ROCm: e.g., "gfx1030"
     pub compute_capability: Option<String>,
+
+    /// Maximum threads per block/workgroup
+    pub max_threads_per_block: u32,
+
+    /// Maximum shared memory per block (in bytes)
+    pub max_shared_memory_per_block: u64,
+
+    /// Device ID (0-indexed)
+    pub device_id: i32,
+
+    /// PCI bus ID (e.g., "0000:01:00.0")
+    /// None for Metal (Apple Silicon doesn't expose PCI)
+    pub pci_bus_id: Option<String>,
+}
+
+impl GpuDeviceInfo {
+    /// Calculate VRAM usage percentage (0.0 to 100.0)
+    ///
+    /// # Examples
+    ///
+    /// ```no_run
+    /// # use hive_gpu::types::GpuDeviceInfo;
+    /// # let info = GpuDeviceInfo {
+    /// #     name: "Test GPU".to_string(),
+    /// #     backend: "Test".to_string(),
+    /// #     total_vram_bytes: 16 * 1024 * 1024 * 1024,
+    /// #     available_vram_bytes: 8 * 1024 * 1024 * 1024,
+    /// #     used_vram_bytes: 8 * 1024 * 1024 * 1024,
+    /// #     driver_version: "1.0".to_string(),
+    /// #     compute_capability: None,
+    /// #     max_threads_per_block: 1024,
+    /// #     max_shared_memory_per_block: 49152,
+    /// #     device_id: 0,
+    /// #     pci_bus_id: None,
+    /// # };
+    /// let usage = info.vram_usage_percent();
+    /// assert!(usage >= 0.0 && usage <= 100.0);
+    /// ```
+    pub fn vram_usage_percent(&self) -> f64 {
+        if self.total_vram_bytes == 0 {
+            return 0.0;
+        }
+        (self.used_vram_bytes as f64 / self.total_vram_bytes as f64) * 100.0
+    }
+
+    /// Check if there is sufficient available VRAM
+    ///
+    /// # Arguments
+    ///
+    /// * `required_bytes` - Minimum required VRAM in bytes
+    ///
+    /// # Examples
+    ///
+    /// ```no_run
+    /// # use hive_gpu::types::GpuDeviceInfo;
+    /// # let info = GpuDeviceInfo {
+    /// #     name: "Test GPU".to_string(),
+    /// #     backend: "Test".to_string(),
+    /// #     total_vram_bytes: 16 * 1024 * 1024 * 1024,
+    /// #     available_vram_bytes: 8 * 1024 * 1024 * 1024,
+    /// #     used_vram_bytes: 8 * 1024 * 1024 * 1024,
+    /// #     driver_version: "1.0".to_string(),
+    /// #     compute_capability: None,
+    /// #     max_threads_per_block: 1024,
+    /// #     max_shared_memory_per_block: 49152,
+    /// #     device_id: 0,
+    /// #     pci_bus_id: None,
+    /// # };
+    /// // Check if we have at least 1GB available
+    /// if info.has_available_vram(1 * 1024 * 1024 * 1024) {
+    ///     println!("Sufficient VRAM available");
+    /// }
+    /// ```
+    pub fn has_available_vram(&self, required_bytes: u64) -> bool {
+        self.available_vram_bytes >= required_bytes
+    }
+
+    /// Get VRAM available in megabytes (convenience method)
+    ///
+    /// # Examples
+    ///
+    /// ```no_run
+    /// # use hive_gpu::types::GpuDeviceInfo;
+    /// # let info = GpuDeviceInfo {
+    /// #     name: "Test GPU".to_string(),
+    /// #     backend: "Test".to_string(),
+    /// #     total_vram_bytes: 16 * 1024 * 1024 * 1024,
+    /// #     available_vram_bytes: 8 * 1024 * 1024 * 1024,
+    /// #     used_vram_bytes: 8 * 1024 * 1024 * 1024,
+    /// #     driver_version: "1.0".to_string(),
+    /// #     compute_capability: None,
+    /// #     max_threads_per_block: 1024,
+    /// #     max_shared_memory_per_block: 49152,
+    /// #     device_id: 0,
+    /// #     pci_bus_id: None,
+    /// # };
+    /// println!("Available: {} MB", info.available_vram_mb());
+    /// ```
+    pub fn available_vram_mb(&self) -> u64 {
+        self.available_vram_bytes / (1024 * 1024)
+    }
+
+    /// Get total VRAM in megabytes (convenience method)
+    ///
+    /// # Examples
+    ///
+    /// ```no_run
+    /// # use hive_gpu::types::GpuDeviceInfo;
+    /// # let info = GpuDeviceInfo {
+    /// #     name: "Test GPU".to_string(),
+    /// #     backend: "Test".to_string(),
+    /// #     total_vram_bytes: 16 * 1024 * 1024 * 1024,
+    /// #     available_vram_bytes: 8 * 1024 * 1024 * 1024,
+    /// #     used_vram_bytes: 8 * 1024 * 1024 * 1024,
+    /// #     driver_version: "1.0".to_string(),
+    /// #     compute_capability: None,
+    /// #     max_threads_per_block: 1024,
+    /// #     max_shared_memory_per_block: 49152,
+    /// #     device_id: 0,
+    /// #     pci_bus_id: None,
+    /// # };
+    /// println!("Total: {} MB", info.total_vram_mb());
+    /// ```
+    pub fn total_vram_mb(&self) -> u64 {
+        self.total_vram_bytes / (1024 * 1024)
+    }
 }
 
 /// GPU capabilities

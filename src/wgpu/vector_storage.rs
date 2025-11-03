@@ -3,10 +3,10 @@
 //! High-performance vector storage using wgpu GPU acceleration.
 //! All vector data is stored in VRAM for maximum efficiency.
 
-use crate::error::{Result, HiveGpuError};
-use crate::types::{GpuVector, GpuSearchResult, GpuDistanceMetric};
-use crate::traits::GpuVectorStorage;
 use super::context::WgpuContext;
+use crate::error::{HiveGpuError, Result};
+use crate::traits::GpuVectorStorage;
+use crate::types::{GpuDistanceMetric, GpuSearchResult, GpuVector};
 use std::sync::Arc;
 
 /// wgpu Vector Storage
@@ -22,7 +22,11 @@ pub struct WgpuVectorStorage {
 #[cfg(feature = "wgpu")]
 impl WgpuVectorStorage {
     /// Create new wgpu vector storage
-    pub fn new(context: Arc<WgpuContext>, dimension: usize, metric: GpuDistanceMetric) -> Result<Self> {
+    pub fn new(
+        context: Arc<WgpuContext>,
+        dimension: usize,
+        metric: GpuDistanceMetric,
+    ) -> Result<Self> {
         Ok(Self {
             context,
             vector_count: 0,
@@ -30,7 +34,7 @@ impl WgpuVectorStorage {
             metric,
         })
     }
-    
+
     /// Add vector to storage
     pub fn add_vector(&mut self, vector: &GpuVector) -> Result<usize> {
         // This is a placeholder implementation
@@ -39,19 +43,21 @@ impl WgpuVectorStorage {
         self.vector_count += 1;
         Ok(index)
     }
-    
+
     /// Get vector by ID
     pub fn get_vector(&self, id: &str) -> Result<Option<GpuVector>> {
         // This is a placeholder implementation
-        Err(HiveGpuError::Other("wgpu vector retrieval not implemented yet".to_string()))
+        Err(HiveGpuError::Other(
+            "wgpu vector retrieval not implemented yet".to_string(),
+        ))
     }
-    
+
     /// Remove vector by ID
     pub fn remove_vector(&mut self, id: &str) -> Result<()> {
         // This is a placeholder implementation
         Ok(())
     }
-    
+
     /// Clear all vectors
     pub fn clear(&mut self) -> Result<()> {
         self.vector_count = 0;
@@ -71,7 +77,9 @@ impl GpuVectorStorage for WgpuVectorStorage {
 
     fn search(&self, query: &[f32], limit: usize) -> Result<Vec<GpuSearchResult>> {
         // This is a placeholder implementation
-        Err(HiveGpuError::Other("wgpu search not implemented yet".to_string()))
+        Err(HiveGpuError::Other(
+            "wgpu search not implemented yet".to_string(),
+        ))
     }
 
     fn remove_vectors(&mut self, ids: &[String]) -> Result<()> {
