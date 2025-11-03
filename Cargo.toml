@@ -1,13 +1,16 @@
 [package]
 name = "hive-gpu"
-version = "0.1.6"
+version = "0.1.7"
 edition = "2024"
 authors = ["HiveLLM Contributors"]
 license = "MIT"
-description = "High-performance GPU acceleration for vector operations (Metal, CUDA, wgpu)"
+description = "High-performance GPU acceleration for vector operations with Device Info API (Metal, CUDA, ROCm)"
 repository = "https://github.com/hivellm/hive-gpu"
 keywords = ["gpu", "vector-search", "hnsw", "metal", "cuda"]
 categories = ["hardware-support", "algorithms"]
+readme = "README.md"
+documentation = "https://docs.rs/hive-gpu"
+homepage = "https://github.com/hivellm/hive-gpu"
 
 [workspace]
 
