@@ -2,24 +2,27 @@
 
 ## 1. Hardware Detection Tests
 
-- [ ] 1.1 Create `tests/gpu_detection_tests.rs`
-- [ ] 1.2 Add Metal backend detection tests
-  - [ ] Test device availability check
-  - [ ] Test device name retrieval
-  - [ ] Test device capabilities query
-  - [ ] Test multiple device detection (if available)
-- [ ] 1.3 Add CUDA backend detection tests
-  - [ ] Test CUDA availability check
-  - [ ] Test device enumeration
-  - [ ] Test device properties query
-  - [ ] Test compute capability detection
-- [ ] 1.4 Add ROCm backend detection tests
-  - [ ] Test ROCm availability check
-  - [ ] Test device enumeration
-  - [ ] Test device properties query
-- [ ] 1.5 Add fallback detection tests
-  - [ ] Test CPU fallback when no GPU available
-  - [ ] Test error handling for unsupported platforms
+- [x] 1.1 Create `tests/gpu_detection_tests.rs` ✅
+- [x] 1.2 Add Metal backend detection tests ✅
+  - [x] Test device availability check ✅
+  - [x] Test device name retrieval ✅
+  - [x] Test device capabilities query ✅
+  - [x] Test multiple device detection (if available) ✅
+  - [x] Test VRAM query ✅
+- [⏸️] 1.3 Add CUDA backend detection tests (stubbed for future impl)
+  - [⏸️] Test CUDA availability check
+  - [⏸️] Test device enumeration
+  - [⏸️] Test device properties query
+  - [⏸️] Test compute capability detection
+- [⏸️] 1.4 Add ROCm backend detection tests (stubbed for future impl)
+  - [⏸️] Test ROCm availability check
+  - [⏸️] Test device enumeration
+  - [⏸️] Test device properties query
+- [x] 1.5 Add fallback detection tests ✅
+  - [x] Test CPU fallback when no GPU available ✅
+  - [x] Test backend detection (Metal/CUDA/CPU) ✅
+  - [x] Test best backend selection ✅
+  - [x] Test backend performance info ✅
 
 ## 2. Vector Operations Tests
 
