@@ -174,15 +174,121 @@ let config = HnswConfig {
 
 ### `GpuDeviceInfo`
 
-Information about the GPU device.
+Comprehensive GPU device information including memory, capabilities, and backend-specific details.
 
 ```rust
 pub struct GpuDeviceInfo {
-    pub name: String,
-    pub device_type: String,
-    pub memory_bytes: u64,
-    pub max_buffer_size: u64,
-    pub compute_capability: Option<String>,
+    pub name: String,                          // Device name (e.g., "Apple M2 Pro")
+    pub backend: String,                       // Backend type (e.g., "Metal", "CUDA")
+    pub total_vram_bytes: u64,                 // Total VRAM in bytes
+    pub available_vram_bytes: u64,             // Currently available VRAM
+    pub used_vram_bytes: u64,                  // Currently used VRAM
+    pub driver_version: String,                // Driver version string
+    pub compute_capability: Option<String>,    // Compute capability (CUDA) or architecture
+    pub max_threads_per_block: u32,            // Maximum threads per block/workgroup
+    pub max_shared_memory_per_block: u64,      // Maximum shared memory per block (bytes)
+    pub device_id: u32,                        // Device ID
+    pub pci_bus_id: Option<String>,            // PCI bus ID (if available)
+}
+```
+
+#### Methods
+
+##### `vram_usage_percent`
+```rust
+pub fn vram_usage_percent(&self) -> f64
+```
+
+Calculate VRAM usage percentage (0.0 to 100.0).
+
+**Returns:** VRAM usage percentage
+
+**Example:**
+```rust
+let context = MetalNativeContext::new()?;
+let info = context.device_info()?;
+println!("VRAM usage: {:.1}%", info.vram_usage_percent());
+```
+
+##### `has_available_vram`
+```rust
+pub fn has_available_vram(&self, required_bytes: u64) -> bool
+```
+
+Check if the specified amount of VRAM is available.
+
+**Parameters:**
+- `required_bytes`: Amount of VRAM required in bytes
+
+**Returns:** `true` if sufficient VRAM is available, `false` otherwise
+
+**Example:**
+```rust
+let info = context.device_info()?;
+if info.has_available_vram(1024 * 1024 * 1024) { // 1 GB
+    println!("Sufficient VRAM available");
+} else {
+    println!("Insufficient VRAM");
+}
+```
+
+##### `available_vram_mb`
+```rust
+pub fn available_vram_mb(&self) -> u64
+```
+
+Get available VRAM in megabytes (convenience method).
+
+**Returns:** Available VRAM in MB
+
+**Example:**
+```rust
+let info = context.device_info()?;
+println!("Available: {} MB", info.available_vram_mb());
+```
+
+##### `total_vram_mb`
+```rust
+pub fn total_vram_mb(&self) -> u64
+```
+
+Get total VRAM in megabytes (convenience method).
+
+**Returns:** Total VRAM in MB
+
+**Example:**
+```rust
+let info = context.device_info()?;
+println!("Total: {} MB", info.total_vram_mb());
+```
+
+#### Usage Example
+
+```rust
+use hive_gpu::metal::MetalNativeContext;
+use hive_gpu::traits::GpuContext;
+
+// Create context
+let context = MetalNativeContext::new()?;
+
+// Get device information
+let info = context.device_info()?;
+
+// Inspect device properties
+println!("Device: {}", info.name);
+println!("Backend: {}", info.backend);
+println!("Total VRAM: {} MB", info.total_vram_mb());
+println!("Available VRAM: {} MB", info.available_vram_mb());
+println!("Usage: {:.1}%", info.vram_usage_percent());
+println!("Driver: {}", info.driver_version);
+println!("Max threads/block: {}", info.max_threads_per_block);
+
+// Check if sufficient VRAM for operation
+let required_vram = 2 * 1024 * 1024 * 1024; // 2 GB
+if info.has_available_vram(required_vram) {
+    // Proceed with operation
+} else {
+    println!("Insufficient VRAM for operation");
 }
 ```
 
