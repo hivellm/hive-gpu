@@ -81,7 +81,6 @@ jobs:
           cargo test --verbose
           cargo test --features metal-native --verbose || echo "Metal tests skipped (not on macOS)"
           cargo test --features cuda --verbose || echo "CUDA tests skipped (not on Linux with CUDA)"
-          cargo test --features wgpu --verbose
 
       - name: Build all features
         run: |
@@ -122,7 +121,6 @@ jobs:
             ### 🔧 Features
             - Metal Native GPU acceleration (macOS)
             - CUDA support (Linux/Windows)
-            - wgpu cross-platform support
             - HNSW graph construction and search
             - VRAM monitoring and management
             - Batch operations and optimization
