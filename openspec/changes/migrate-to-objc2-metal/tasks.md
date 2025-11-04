@@ -161,12 +161,12 @@
 
 ## 18. Release Preparation
 
-- [ ] 18.1 Update version to 0.1.8 (or 0.2.0 if breaking) - Ready for release
+- [x] 18.1 Update version to 0.1.8 (Cargo.toml, README.md, CHANGELOG.md) ✅
 - [x] 18.2 Complete CHANGELOG.md entry ✅
-- [x] 18.3 Create git commits with conventional format (2 commits created) ✅
-- [ ] 18.4 Create git tag for release (after CI validation)
+- [x] 18.3 Create git commits with conventional format (3 commits created) ✅
+- [ ] 18.4 Create git tag for release (ready to create: v0.1.8)
 - [ ] 18.5 Update ROADMAP.md if needed (deferred)
-- [ ] 18.6 Archive this OpenSpec change (after release)
+- [ ] 18.6 Archive this OpenSpec change (after deployment)
 
 ## Notes
 

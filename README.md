@@ -1,4 +1,4 @@
-# 🚀 Hive-GPU v0.1.7
+# 🚀 Hive-GPU v0.1.8
 
 **High-performance GPU acceleration library for vector operations**
 
@@ -13,11 +13,11 @@ Add to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-hive-gpu = "0.1.7"
+hive-gpu = "0.1.8"
 
 # Optional: Enable specific GPU backends
-hive-gpu = { version = "0.1.7", features = ["metal-native"] }  # macOS
-hive-gpu = { version = "0.1.7", features = ["cuda"] }          # Linux/Windows
+hive-gpu = { version = "0.1.8", features = ["metal-native"] }  # macOS
+hive-gpu = { version = "0.1.8", features = ["cuda"] }          # Linux/Windows
 ```
 
 ### Metal Backend (macOS)
