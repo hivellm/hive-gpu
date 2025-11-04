@@ -163,10 +163,10 @@
 
 - [x] 18.1 Update version to 0.1.8 (Cargo.toml, README.md, CHANGELOG.md) ✅
 - [x] 18.2 Complete CHANGELOG.md entry ✅
-- [x] 18.3 Create git commits with conventional format (3 commits created) ✅
-- [ ] 18.4 Create git tag for release (ready to create: v0.1.8)
+- [x] 18.3 Create git commits with conventional format (4 commits created) ✅
+- [x] 18.4 Create git tag for release (v0.1.8 created with full release notes) ✅
 - [ ] 18.5 Update ROADMAP.md if needed (deferred)
-- [ ] 18.6 Archive this OpenSpec change (after deployment)
+- [ ] 18.6 Archive this OpenSpec change (manual step - after push)
 
 ## Notes
 
