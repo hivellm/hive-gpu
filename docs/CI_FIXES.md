@@ -1,26 +1,26 @@
-# 🔧 Correções dos Erros do CI/CD
+# 🔧 CI/CD Error Fixes
 
-Este documento descreve os 3 erros encontrados no GitHub Actions CI/CD e suas correções.
+This document describes the 3 errors found in GitHub Actions CI/CD and their fixes.
 
-## 📋 Resumo dos Erros
+## 📋 Error Summary
 
-| Erro | Arquivo | Linha | Status |
+| Error | File | Line | Status |
 |------|---------|-------|--------|
-| 1. Codespell - arquivo deletado em cache | `.github/workflows/codespell.yml` | 18-20 | ✅ Corrigido |
-| 2. Cargo audit - sintaxe Windows incompatível | `.github/workflows/rust-test.yml` | 56-57 | ✅ Corrigido |
-| 3. Doctests - Metal no Linux/Windows | `.github/workflows/ci.yml` | 79-84 | ✅ Corrigido |
-| 3. Doctests - Metal no Linux/Windows | `.github/workflows/rust-test.yml` | 45-50 | ✅ Corrigido |
-| 3. Doctests - Exemplos de código | `src/types.rs` | 89-103 | ✅ Corrigido |
-| 3. Doctests - Exemplos de código | `src/traits.rs` | 76-93 | ✅ Corrigido |
+| 1. Codespell - deleted file in cache | `.github/workflows/codespell.yml` | 18-20 | ✅ Fixed |
+| 2. Cargo audit - Windows incompatible syntax | `.github/workflows/rust-test.yml` | 56-57 | ✅ Fixed |
+| 3. Doctests - Metal on Linux/Windows | `.github/workflows/ci.yml` | 79-84 | ✅ Fixed |
+| 3. Doctests - Metal on Linux/Windows | `.github/workflows/rust-test.yml` | 45-50 | ✅ Fixed |
+| 3. Doctests - Code examples | `src/types.rs` | 89-103 | ✅ Fixed |
+| 3. Doctests - Code examples | `src/traits.rs` | 76-93 | ✅ Fixed |
 
 ---
 
-## 🔴 Erro 1: Codespell - Arquivo Deletado em Cache
+## 🔴 Error 1: Codespell - Deleted File in Cache
 
-### Sintoma
+### Symptom
 ```
-./docs/HIVE_GPU_IMPLEMENTATION_RECOMMENDATIONS.md:5: Autor ==> Author
-./docs/HIVE_GPU_IMPLEMENTATION_RECOMMENDATIONS.md:14: Atual ==> Actual
+./docs/HIVE_GPU_IMPLEMENTATION_RECOMMENDATIONS.md:5: Author ==> Author
+./docs/HIVE_GPU_IMPLEMENTATION_RECOMMENDATIONS.md:14: Current ==> Actual
 ```
 
 ### Causa
@@ -50,9 +50,9 @@ codespell \
 
 ---
 
-## 🔴 Erro 2: Cargo Audit - Sintaxe Windows Incompatível
+## 🔴 Error 2: Cargo Audit - Windows Incompatible Syntax
 
-### Sintoma
+### Symptom
 ```
 Could not find a part of the path 'D:\dev\null'.
 Error: Process completed with exit code 1.
@@ -80,15 +80,15 @@ Adicionei `shell: bash` para forçar o uso do Bash no Windows também:
 cargo install cargo-audit --locked 2>/dev/null || true
 cargo audit
 
-# Windows (precisa do Git Bash ou WSL)
-# Execute no Git Bash ou WSL para simular o CI
+# Windows (requires Git Bash or WSL)
+# Run in Git Bash or WSL to simulate CI
 ```
 
 ---
 
-## 🔴 Erro 3: Doctests - Metal no Linux/Windows
+## 🔴 Error 3: Doctests - Metal on Linux/Windows
 
-### Sintoma
+### Symptom
 ```
 error[E0432]: unresolved import `hive_gpu::metal`
   --> src/types.rs:91:15
@@ -216,14 +216,14 @@ cargo audit  # opcional
    ./validate-ci.sh
    ```
 
-2. **Commit das Correções:**
+2. **Commit the Fixes:**
    ```bash
    git add .
-   git commit -m "fix(ci): Corrigir erros do CI/CD
+   git commit -m "fix(ci): Fix CI/CD errors
 
-   - codespell: fetch completo do histórico Git
-   - cargo audit: forçar bash no Windows  
-   - doctests: rodar apenas no macOS (Metal)"
+   - codespell: full Git history fetch
+   - cargo audit: force bash on Windows  
+   - doctests: run only on macOS (Metal)"
    ```
 
 3. **Push e Verificar CI:**

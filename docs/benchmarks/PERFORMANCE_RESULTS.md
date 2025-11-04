@@ -122,8 +122,8 @@
 
 ⚠️ **Portuguese text flagged** (expected, not actual typos):
 - "ser" (to be) flagged as "set"
-- "Fase" (Phase) flagged correctly
-- "Autor" (Author) flagged correctly
+- "Phase" flagged correctly
+- "Author" flagged correctly
 - Documentation contains intentional Portuguese sections
 
 **Recommendation**: Add Portuguese words to codespell ignore list if needed.

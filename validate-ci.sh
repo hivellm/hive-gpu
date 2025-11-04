@@ -19,7 +19,7 @@ if command -v codespell &> /dev/null; then
     codespell \
       --skip="*.lock,*.json,*.map,*.yaml,*.yml,target,node_modules,.git,dist" \
       --ignore-words-list="crate,ser,deser" || {
-        echo "❌ Codespell encontrou erros de ortografia!"
+        echo "❌ Codespell found spelling errors!"
         exit 1
     }
     echo "✅ Codespell passou"
@@ -101,9 +101,9 @@ if command -v cargo-audit &> /dev/null; then
     }
     echo "✅ Security audit concluído"
 else
-    echo "⚠️  cargo-audit não instalado"
-    echo "   Instale com: cargo install cargo-audit"
-    echo "   Pulando audit..."
+    echo "⚠️  cargo-audit not installed"
+    echo "   Install with: cargo install cargo-audit"
+    echo "   Skipping audit..."
 fi
 echo ""
 
@@ -117,9 +117,9 @@ if command -v cargo-llvm-cov &> /dev/null; then
     }
     echo "✅ Coverage check concluído"
 else
-    echo "⚠️  cargo-llvm-cov não instalado"
-    echo "   Instale com: cargo install cargo-llvm-cov"
-    echo "   Pulando coverage..."
+    echo "⚠️  cargo-llvm-cov not installed"
+    echo "   Install with: cargo install cargo-llvm-cov"
+    echo "   Skipping coverage..."
 fi
 echo ""
 
@@ -148,7 +148,7 @@ echo "🚀 Você está pronto para fazer commit e push!"
 echo ""
 echo "✋ PRÓXIMOS PASSOS:"
 echo "   1. git add ."
-echo "   2. git commit -m 'fix(ci): Corrigir erros do CI/CD'"
+echo "   2. git commit -m 'fix(ci): Fix CI/CD errors'"
 echo "   3. git push origin main"
 echo ""
 

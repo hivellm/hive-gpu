@@ -1,0 +1,5 @@
+[tool.codespell]
+skip = "*.lock,*.json,target,node_modules,.git,bench_results.txt"
+# Valid technical terms in Rust ecosystem
+ignore-words-list = "crate,ser,deser"
+

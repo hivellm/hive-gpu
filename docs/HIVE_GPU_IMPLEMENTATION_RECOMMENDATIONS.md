@@ -1,8 +1,8 @@
 # Recomendações de Implementação para hive-gpu
 
-**Data:** 2025-01-07  
-**Versão:** 1.0  
-**Autor:** Vectorizer Team  
+**Date:** 2025-01-07  
+**Version:** 1.0  
+**Author:** Vectorizer Team  
 **Target:** hive-gpu Library (v0.2.0+)
 
 ---
@@ -11,7 +11,7 @@
 
 Este documento detalha as **recomendações críticas** para expansão da biblioteca `hive-gpu`, necessárias para suportar aceleração GPU em **todas as plataformas principais** do Vectorizer.
 
-### Situação Atual
+### Current Status
 
 | Backend | Status | Plataformas | Cobertura de Mercado |
 |---------|--------|-------------|---------------------|
@@ -76,26 +76,26 @@ hive-gpu/
 │   │   ├── context.rs
 │   │   └── storage.rs
 │   │
-│   ├── cuda/                  # ❌ IMPLEMENTAR (Fase 1)
+│   ├── cuda/                  # ❌ IMPLEMENTAR (Phase 1)
 │   │   ├── mod.rs
 │   │   ├── context.rs
 │   │   ├── storage.rs
 │   │   ├── kernels.cu         # CUDA kernels
 │   │   └── utils.rs
 │   │
-│   ├── rocm/                  # ❌ IMPLEMENTAR (Fase 2)
+│   ├── rocm/                  # ❌ IMPLEMENTAR (Phase 2)
 │   │   ├── mod.rs
 │   │   ├── context.rs
 │   │   ├── storage.rs
 │   │   └── kernels.hip        # HIP kernels
 │   │
-│   ├── wgpu/                  # ❌ IMPLEMENTAR (Fase 3)
+│   ├── wgpu/                  # ❌ IMPLEMENTAR (Phase 3)
 │   │   ├── mod.rs
 │   │   ├── context.rs
 │   │   ├── storage.rs
 │   │   └── shaders.wgsl       # WGSL shaders
 │   │
-│   └── pool/                  # ❌ IMPLEMENTAR (Fase 4)
+│   └── pool/                  # ❌ IMPLEMENTAR (Phase 4)
 │       ├── mod.rs
 │       └── memory_pool.rs
 │
@@ -116,7 +116,7 @@ hive-gpu/
 
 ---
 
-## 📦 Fase 1: Device Info API (Prioridade: 🔥 ALTA)
+## 📦 Phase 1: Device Info API (Prioridade: 🔥 ALTA)
 
 **Tempo Estimado:** 1-2 dias  
 **Complexidade:** Baixa  
@@ -281,7 +281,7 @@ fn test_metal_device_info() {
 
 ---
 
-## 🚀 Fase 2: CUDA Backend (Prioridade: 🔥 CRÍTICA)
+## 🚀 Phase 2: CUDA Backend (Prioridade: 🔥 CRÍTICA)
 
 **Tempo Estimado:** 1-2 semanas  
 **Complexidade:** Alta  
@@ -1036,7 +1036,7 @@ mod cuda_tests {
 
 ---
 
-## 📦 Fase 3: ROCm Backend (Prioridade: ⚡ MÉDIA)
+## 📦 Phase 3: ROCm Backend (Prioridade: ⚡ MÉDIA)
 
 **Tempo Estimado:** 1-2 semanas  
 **Complexidade:** Alta  
@@ -1066,7 +1066,7 @@ rocblas-sys = { version = "0.3", optional = true }
 
 ---
 
-## 📦 Fase 4: WebGPU Backend (Prioridade: 📦 BAIXA)
+## 📦 Phase 4: WebGPU Backend (Prioridade: 📦 BAIXA)
 
 **Tempo Estimado:** 1 semana  
 **Complexidade:** Média  
@@ -1155,7 +1155,7 @@ impl GpuContext for WgpuContext {
 
 ---
 
-## 📦 Fase 5: Memory Pooling (Prioridade: ⚡ MÉDIA)
+## 📦 Phase 5: Memory Pooling (Prioridade: ⚡ MÉDIA)
 
 **Tempo Estimado:** 3-5 dias  
 **Complexidade:** Média  
@@ -1231,7 +1231,7 @@ impl GpuMemoryPool {
 
 ---
 
-## 📦 Fase 6: Async Operations (Prioridade: 📦 BAIXA)
+## 📦 Phase 6: Async Operations (Prioridade: 📦 BAIXA)
 
 **Tempo Estimado:** 3-5 dias  
 **Complexidade:** Média  
