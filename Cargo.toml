@@ -1,6 +1,6 @@
 [package]
 name = "hive-gpu"
-version = "0.1.9"
+version = "0.1.10"
 edition = "2024"
 authors = ["HiveLLM Contributors"]
 license = "MIT"

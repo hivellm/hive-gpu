@@ -7,15 +7,13 @@
 //! - Rapid allocation/deallocation cycles
 //! - Concurrent high-load operations
 
-use std::time::{Duration, Instant};
-
 #[cfg(all(target_os = "macos", feature = "metal-native"))]
 mod metal_stress_tests {
-    use super::*;
     use hive_gpu::error::HiveGpuError;
     use hive_gpu::metal::MetalNativeContext;
     use hive_gpu::traits::GpuContext;
     use hive_gpu::types::{GpuDistanceMetric, GpuVector};
+    use std::time::{Duration, Instant};
 
     /// Helper to create test vectors
     fn create_test_vectors(count: usize, dimension: usize, offset: usize) -> Vec<GpuVector> {

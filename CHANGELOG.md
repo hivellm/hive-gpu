@@ -5,6 +5,15 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.10] - 2025-11-04
+
+### Fixed
+
+- **Clippy Build Error**: Moved `Duration` and `Instant` imports inside conditional compilation block in `tests/gpu_stress_tests.rs`
+  - Imports were causing unused import warnings when compiled without `metal-native` feature
+  - Now properly scoped within `#[cfg(all(target_os = "macos", feature = "metal-native"))]` module
+  - All clippy checks passing with `-D warnings`
+
 ## [0.1.9] - 2025-11-04
 
 ### Added
