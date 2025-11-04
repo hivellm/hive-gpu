@@ -278,5 +278,10 @@ criterion_main!(metal_benches, cpu_benches);
 #[cfg(all(not(target_os = "macos"), feature = "cuda"))]
 criterion_main!(cuda_benches, cpu_benches);
 
-#[cfg(not(any(feature = "metal-native", feature = "cuda")))]
+// Fallback: CPU-only benchmarks for unsupported configurations
+// (e.g., Windows/Linux without CUDA, or any platform without GPU features)
+#[cfg(not(any(
+    all(target_os = "macos", feature = "metal-native"),
+    all(not(target_os = "macos"), feature = "cuda")
+)))]
 criterion_main!(cpu_benches);
