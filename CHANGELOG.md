@@ -5,6 +5,37 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Changed
+
+- **BREAKING: Migrated from discontinued `metal-rs` to `objc2-metal` ecosystem**
+  - Replaced `metal 0.27` with `objc2-metal 0.3.2` (actively maintained)
+  - Replaced `objc 0.2` with `objc2 0.6.3` (modern, type-safe bindings)
+  - Added `objc2-foundation 0.3.2` for Foundation framework support
+  - Updated all Metal bindings to use `ProtocolObject<dyn MTLDevice>` pattern
+  - Migrated buffer operations to objc2-metal API (camelCase method names)
+  - All Metal-specific code now uses objc2-metal traits (MTLDevice, MTLCommandQueue, MTLCommandEncoder, etc.)
+  - Complete migration of `src/metal/context.rs`, `src/metal/vector_storage.rs`, `src/metal/buffer_pool.rs`, `src/backends/detector.rs`
+  - All 21 tests passing (unit, integration, doc tests)
+  - Zero clippy warnings
+  - **Security**: Removed dependency on discontinued library with no security updates
+  - **Maintenance**: Now using actively maintained crates from objc2 ecosystem
+  - **Type Safety**: Improved type safety with modern Objective-C bindings
+  - **Future-Proof**: Foundation for continued macOS/Metal development
+
+### Fixed
+
+- Metal device detection now uses `MTLCreateSystemDefaultDevice()` from objc2-metal
+- Buffer creation uses proper `MTLResourceOptions` and type-safe methods
+- Command buffer and blit encoder creation using objc2-metal patterns
+
+### Internal
+
+- OpenSpec change `migrate-to-objc2-metal` tracking migration progress
+- Created rollback tag `pre-objc2-migration` for safety
+- Comprehensive migration documentation in `docs/guides/MIGRATION_METAL_OBJC2.md`
+
 ## [0.1.7] - 2025-11-03
 
 ### Added
