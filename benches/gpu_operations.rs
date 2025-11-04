@@ -30,13 +30,14 @@ fn bench_metal_vector_addition(c: &mut Criterion) {
     for size in [100, 1000, 10000].iter() {
         group.throughput(Throughput::Elements(*size as u64));
         group.bench_with_input(BenchmarkId::from_parameter(size), size, |b, &size| {
-            let context = MetalNativeContext::new().unwrap();
-            let mut storage = context
-                .create_storage(512, GpuDistanceMetric::Cosine)
-                .unwrap();
             let vectors = create_test_vectors(size, 512);
 
             b.iter(|| {
+                // Create fresh storage for each iteration to avoid duplicate IDs
+                let context = MetalNativeContext::new().unwrap();
+                let mut storage = context
+                    .create_storage(512, GpuDistanceMetric::Cosine)
+                    .unwrap();
                 storage.add_vectors(&vectors).unwrap();
             });
         });
