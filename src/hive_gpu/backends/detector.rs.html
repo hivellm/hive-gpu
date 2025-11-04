@@ -71,9 +71,9 @@
 <a href=#71 id=71 data-nosnippet>71</a><span class="doccomment">/// Check if Metal is available on the current system
 <a href=#72 id=72 data-nosnippet>72</a></span><span class="attr">#[cfg(all(target_os = <span class="string">"macos"</span>, feature = <span class="string">"metal-native"</span>))]
 <a href=#73 id=73 data-nosnippet>73</a></span><span class="kw">fn </span>is_metal_available() -&gt; bool {
-<a href=#74 id=74 data-nosnippet>74</a>    <span class="kw">use </span>metal::Device;
+<a href=#74 id=74 data-nosnippet>74</a>    <span class="kw">use </span>objc2_metal::MTLCreateSystemDefaultDevice;
 <a href=#75 id=75 data-nosnippet>75</a>
-<a href=#76 id=76 data-nosnippet>76</a>    Device::system_default().is_some()
+<a href=#76 id=76 data-nosnippet>76</a>    MTLCreateSystemDefaultDevice().is_some()
 <a href=#77 id=77 data-nosnippet>77</a>}
 <a href=#78 id=78 data-nosnippet>78</a>
 <a href=#79 id=79 data-nosnippet>79</a><span class="doccomment">/// Check if CUDA is available on the current system
@@ -90,8 +90,8 @@
 <a href=#90 id=90 data-nosnippet>90</a>        GpuBackendType::Metal =&gt; {
 <a href=#91 id=91 data-nosnippet>91</a>            <span class="attr">#[cfg(all(target_os = <span class="string">"macos"</span>, feature = <span class="string">"metal-native"</span>))]
 <a href=#92 id=92 data-nosnippet>92</a>            </span>{
-<a href=#93 id=93 data-nosnippet>93</a>                <span class="kw">use </span>metal::Device;
-<a href=#94 id=94 data-nosnippet>94</a>                <span class="kw">if let </span><span class="prelude-val">Some</span>(device) = Device::system_default() {
+<a href=#93 id=93 data-nosnippet>93</a>                <span class="kw">use </span>objc2_metal::{MTLCreateSystemDefaultDevice, MTLDevice};
+<a href=#94 id=94 data-nosnippet>94</a>                <span class="kw">if let </span><span class="prelude-val">Some</span>(device) = MTLCreateSystemDefaultDevice() {
 <a href=#95 id=95 data-nosnippet>95</a>                    <span class="prelude-val">Ok</span>(<span class="macro">format!</span>(<span class="string">"Metal device: {}"</span>, device.name()))
 <a href=#96 id=96 data-nosnippet>96</a>                } <span class="kw">else </span>{
 <a href=#97 id=97 data-nosnippet>97</a>                    <span class="prelude-val">Err</span>(HiveGpuError::NoDeviceAvailable)
