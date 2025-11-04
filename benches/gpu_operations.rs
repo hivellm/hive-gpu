@@ -3,6 +3,8 @@
 //! These benchmarks measure the performance of GPU operations
 //! and compare them with CPU implementations.
 
+// criterion_main is used by the macro expansion
+#[allow(unused_imports)]
 use criterion::{BenchmarkId, Criterion, Throughput, criterion_group, criterion_main};
 use hive_gpu::GpuVector;
 use std::collections::HashMap;
