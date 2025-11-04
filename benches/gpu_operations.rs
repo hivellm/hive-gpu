@@ -4,14 +4,8 @@
 //! and compare them with CPU implementations.
 
 use criterion::{BenchmarkId, Criterion, Throughput, criterion_group, criterion_main};
-use hive_gpu::{GpuContext, GpuDistanceMetric, GpuVector};
+use hive_gpu::GpuVector;
 use std::collections::HashMap;
-
-#[cfg(all(target_os = "macos", feature = "metal-native"))]
-use hive_gpu::metal::MetalNativeContext;
-
-#[cfg(feature = "cuda")]
-use hive_gpu::cuda::CudaContext;
 
 // Helper function to create test vectors (used by all benchmarks)
 fn create_test_vectors(count: usize, dimension: usize) -> Vec<GpuVector> {
@@ -26,6 +20,9 @@ fn create_test_vectors(count: usize, dimension: usize) -> Vec<GpuVector> {
 
 #[cfg(all(target_os = "macos", feature = "metal-native"))]
 fn bench_metal_vector_addition(c: &mut Criterion) {
+    use hive_gpu::metal::MetalNativeContext;
+    use hive_gpu::{GpuContext, GpuDistanceMetric};
+
     let mut group = c.benchmark_group("metal_vector_addition");
 
     for size in [100, 1000, 10000].iter() {
@@ -48,6 +45,9 @@ fn bench_metal_vector_addition(c: &mut Criterion) {
 
 #[cfg(all(target_os = "macos", feature = "metal-native"))]
 fn bench_metal_vector_search(c: &mut Criterion) {
+    use hive_gpu::metal::MetalNativeContext;
+    use hive_gpu::{GpuContext, GpuDistanceMetric};
+
     let mut group = c.benchmark_group("metal_vector_search");
 
     for size in [1000, 10000, 100000].iter() {
@@ -75,6 +75,9 @@ fn bench_metal_vector_search(c: &mut Criterion) {
 
 #[cfg(all(target_os = "macos", feature = "metal-native"))]
 fn bench_metal_hnsw_construction(c: &mut Criterion) {
+    use hive_gpu::metal::MetalNativeContext;
+    use hive_gpu::{GpuContext, GpuDistanceMetric};
+
     let mut group = c.benchmark_group("metal_hnsw_construction");
 
     for size in [1000, 5000, 10000].iter() {
@@ -105,6 +108,9 @@ fn bench_metal_hnsw_construction(c: &mut Criterion) {
 
 #[cfg(all(target_os = "macos", feature = "metal-native"))]
 fn bench_metal_batch_operations(c: &mut Criterion) {
+    use hive_gpu::metal::MetalNativeContext;
+    use hive_gpu::{GpuContext, GpuDistanceMetric};
+
     let mut group = c.benchmark_group("metal_batch_operations");
 
     for batch_size in [100, 500, 1000].iter() {
@@ -136,6 +142,9 @@ fn bench_metal_batch_operations(c: &mut Criterion) {
 
 #[cfg(all(target_os = "macos", feature = "metal-native"))]
 fn bench_metal_distance_metrics(c: &mut Criterion) {
+    use hive_gpu::metal::MetalNativeContext;
+    use hive_gpu::{GpuContext, GpuDistanceMetric};
+
     let mut group = c.benchmark_group("metal_distance_metrics");
 
     let metrics = [
@@ -166,6 +175,9 @@ fn bench_metal_distance_metrics(c: &mut Criterion) {
 
 #[cfg(feature = "cuda")]
 fn bench_cuda_vector_operations(c: &mut Criterion) {
+    use hive_gpu::cuda::CudaContext;
+    use hive_gpu::{GpuContext, GpuDistanceMetric};
+
     let mut group = c.benchmark_group("cuda_vector_operations");
 
     for size in [100, 1000, 10000].iter() {
@@ -188,6 +200,9 @@ fn bench_cuda_vector_operations(c: &mut Criterion) {
 
 #[cfg(feature = "wgpu")]
 fn bench_wgpu_vector_operations(c: &mut Criterion) {
+    use hive_gpu::metal::MetalNativeContext;
+    use hive_gpu::{GpuContext, GpuDistanceMetric};
+
     let mut group = c.benchmark_group("wgpu_vector_operations");
 
     for size in [100, 1000, 10000].iter() {
@@ -237,6 +252,9 @@ fn bench_cpu_vector_operations(c: &mut Criterion) {
 // Memory usage benchmarks
 #[cfg(all(target_os = "macos", feature = "metal-native"))]
 fn bench_metal_memory_usage(c: &mut Criterion) {
+    use hive_gpu::metal::MetalNativeContext;
+    use hive_gpu::{GpuBackend, GpuContext, GpuDistanceMetric};
+
     let mut group = c.benchmark_group("metal_memory_usage");
 
     for size in [1000, 10000, 100000].iter() {
@@ -251,7 +269,7 @@ fn bench_metal_memory_usage(c: &mut Criterion) {
                 storage.add_vectors(&vectors).unwrap();
 
                 // Measure memory usage
-                let stats = context.memory_stats();
+                let stats = GpuBackend::memory_stats(&context);
                 assert!(stats.total_allocated > 0);
             });
         });
