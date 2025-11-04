@@ -1,4 +1,4 @@
-# 🚀 Hive-GPU v0.1.0
+# 🚀 Hive-GPU v0.1.7
 
 **High-performance GPU acceleration library for vector operations**
 
@@ -13,17 +13,16 @@ Add to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-hive-gpu = "0.1.0"
+hive-gpu = "0.1.7"
 
 # Optional: Enable specific GPU backends
-hive-gpu = { version = "0.1.0", features = ["metal-native"] }  # macOS
-hive-gpu = { version = "0.1.0", features = ["cuda"] }          # Linux/Windows
-hive-gpu = { version = "0.1.0", features = ["wgpu"] }          # Cross-platform
+hive-gpu = { version = "0.1.7", features = ["metal-native"] }  # macOS
+hive-gpu = { version = "0.1.7", features = ["cuda"] }          # Linux/Windows
 ```
 
 ## 🎯 Features
 
-- **🔥 GPU Acceleration**: Metal Native, CUDA, and wgpu support
+- **🔥 GPU Acceleration**: Metal Native (macOS) and CUDA (Linux/Windows) support
 - **⚡ High Performance**: VRAM-only storage for maximum speed
 - **🧠 HNSW Graphs**: GPU-accelerated approximate nearest neighbor search
 - **📊 Vector Operations**: Cosine similarity, Euclidean distance, dot product
@@ -156,16 +155,7 @@ let context = CudaContext::new()?;
 let storage = context.create_storage(128, GpuDistanceMetric::Cosine)?;
 ```
 
-### wgpu (Cross-platform)
-
-```rust
-use hive_gpu::wgpu::context::WgpuContext;
-use hive_gpu::traits::{GpuContext, GpuVectorStorage};
-
-// wgpu provides cross-platform GPU acceleration
-let context = WgpuContext::new()?;
-let storage = context.create_storage(128, GpuDistanceMetric::Cosine)?;
-```
+**Note**: CUDA backend is currently in development. Use Metal Native on macOS for production workloads.
 
 ## 🏗️ Integration with Vectorizer
 
@@ -175,7 +165,7 @@ let storage = context.create_storage(128, GpuDistanceMetric::Cosine)?;
 # In your Cargo.toml
 [dependencies]
 vectorizer = { git = "https://github.com/hivellm/vectorizer.git" }
-hive-gpu = "0.1.0"
+hive-gpu = "0.1.7"
 ```
 
 ```rust
@@ -287,10 +277,9 @@ impl MyVectorStore {
 
 ```toml
 [dependencies]
-hive-gpu = { version = "0.1.0", features = ["metal-native"] }  # macOS only
-hive-gpu = { version = "0.1.0", features = ["cuda"] }          # Linux/Windows
-hive-gpu = { version = "0.1.0", features = ["wgpu"] }          # Cross-platform
-hive-gpu = { version = "0.1.0", features = ["metal-native", "cuda", "wgpu"] }  # All backends
+hive-gpu = { version = "0.1.7", features = ["metal-native"] }  # macOS only
+hive-gpu = { version = "0.1.7", features = ["cuda"] }          # Linux/Windows (in development)
+hive-gpu = { version = "0.1.7", features = ["metal-native", "cuda"] }  # Both backends
 ```
 
 ### Environment Variables
@@ -423,9 +412,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 cargo test --all-features
 
 # Test specific backend
-cargo test --features metal-native
-cargo test --features cuda
-cargo test --features wgpu
+cargo test --features metal-native  # macOS only
+cargo test --features cuda          # Linux/Windows (in development)
 
 # Run benchmarks
 cargo bench
@@ -539,7 +527,6 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 - **Metal Framework**: Apple's GPU compute framework
 - **CUDA**: NVIDIA's parallel computing platform
-- **wgpu**: Cross-platform GPU API
 - **Rust Community**: For the amazing ecosystem
 
 ## 📞 Support
