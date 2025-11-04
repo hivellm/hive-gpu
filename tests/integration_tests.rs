@@ -248,40 +248,6 @@ mod cuda_tests {
     }
 }
 
-#[cfg(feature = "wgpu")]
-mod wgpu_tests {
-    use super::*;
-    use hive_gpu::GpuContext;
-    use hive_gpu::wgpu::WgpuContext;
-    use std::collections::HashMap;
-
-    #[tokio::test]
-    async fn test_wgpu_basic_operations() {
-        // Skip test if wgpu is not implemented yet
-        println!("⚠️ wgpu tests skipped - module not fully implemented yet");
-        return;
-
-        #[allow(unreachable_code)]
-        let context = WgpuContext::new().expect("Failed to create wgpu context");
-        let mut storage = context
-            .create_storage(128, GpuDistanceMetric::Cosine)
-            .expect("Failed to create storage");
-
-        // Test basic operations (placeholder implementation)
-        let vectors = vec![GpuVector {
-            id: "wgpu_vec1".to_string(),
-            data: vec![1.0; 128],
-            metadata: HashMap::new(),
-        }];
-
-        let indices = storage
-            .add_vectors(&vectors)
-            .expect("Failed to add vectors");
-        assert_eq!(indices.len(), 1);
-        assert_eq!(storage.vector_count(), 1);
-    }
-}
-
 // Cross-backend tests
 mod cross_backend_tests {
     use super::*;

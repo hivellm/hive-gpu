@@ -200,32 +200,6 @@ fn bench_cuda_vector_operations(c: &mut Criterion) {
     group.finish();
 }
 
-#[cfg(feature = "wgpu")]
-fn bench_wgpu_vector_operations(c: &mut Criterion) {
-    use hive_gpu::metal::MetalNativeContext;
-    use hive_gpu::{GpuContext, GpuDistanceMetric};
-
-    let mut group = c.benchmark_group("wgpu_vector_operations");
-
-    for size in [100, 1000, 10000].iter() {
-        group.throughput(Throughput::Elements(*size as u64));
-        group.bench_with_input(BenchmarkId::from_parameter(size), size, |b, &size| {
-            // let context = WgpuContext::new().unwrap(); // Commented out until wgpu is implemented
-            let context = MetalNativeContext::new().unwrap(); // Use Metal as fallback
-            let mut storage = context
-                .create_storage(512, GpuDistanceMetric::Cosine)
-                .unwrap();
-            let vectors = create_test_vectors(size, 512);
-
-            b.iter(|| {
-                storage.add_vectors(&vectors).unwrap();
-            });
-        });
-    }
-
-    group.finish();
-}
-
 // CPU baseline benchmarks for comparison
 fn bench_cpu_vector_operations(c: &mut Criterion) {
     let mut group = c.benchmark_group("cpu_vector_operations");
@@ -295,9 +269,6 @@ criterion_group!(
 #[cfg(feature = "cuda")]
 criterion_group!(cuda_benches, bench_cuda_vector_operations);
 
-#[cfg(feature = "wgpu")]
-criterion_group!(wgpu_benches, bench_wgpu_vector_operations);
-
 criterion_group!(cpu_benches, bench_cpu_vector_operations);
 
 // Main benchmark runner
@@ -307,8 +278,5 @@ criterion_main!(metal_benches, cpu_benches);
 #[cfg(all(not(target_os = "macos"), feature = "cuda"))]
 criterion_main!(cuda_benches, cpu_benches);
 
-#[cfg(all(not(target_os = "macos"), not(feature = "cuda"), feature = "wgpu"))]
-criterion_main!(wgpu_benches, cpu_benches);
-
-#[cfg(not(any(feature = "metal-native", feature = "cuda", feature = "wgpu")))]
+#[cfg(not(any(feature = "metal-native", feature = "cuda")))]
 criterion_main!(cpu_benches);
