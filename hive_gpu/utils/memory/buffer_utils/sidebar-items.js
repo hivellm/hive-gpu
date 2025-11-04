@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"constant":["BUFFER_ALIGNMENT"],"fn":["align_buffer_size","calculate_buffer_pool_size","validate_buffer_parameters"]};

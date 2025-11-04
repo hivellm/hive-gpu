@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"fn":["calculate_metadata_memory_size","calculate_optimal_buffer_size","calculate_vector_memory_size","is_memory_allocation_safe"]};

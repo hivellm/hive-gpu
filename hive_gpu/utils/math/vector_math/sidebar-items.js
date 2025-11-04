@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"fn":["cosine_similarity","dot_product","euclidean_distance","normalize_vector","vector_magnitude"]};

@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"fn":["batch_similarity","calculate_similarity","top_k_similar"]};

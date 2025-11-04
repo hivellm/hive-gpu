@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"enum":["BufferType"],"struct":["BufferPoolStats","GpuBuffer","VramBufferInfo","VramStats"],"trait":["GpuBackend","GpuBufferManager","GpuContext","GpuMonitor","GpuVectorStorage"]};

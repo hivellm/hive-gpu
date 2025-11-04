@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"mod":["metal_shaders","wgsl_shaders"]};

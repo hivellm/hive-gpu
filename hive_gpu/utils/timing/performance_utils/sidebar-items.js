@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"fn":["benchmark_function","calculate_efficiency","calculate_latency","calculate_throughput"]};

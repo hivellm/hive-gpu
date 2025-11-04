@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"mod":["buffer_pool","context","helpers","hnsw_graph","vector_storage","vram_monitor"]};

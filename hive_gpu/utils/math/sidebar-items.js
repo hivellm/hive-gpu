@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"mod":["similarity_calculations","vector_math"]};

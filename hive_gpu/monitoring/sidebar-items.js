@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"mod":["performance_monitor","vram_monitor"]};

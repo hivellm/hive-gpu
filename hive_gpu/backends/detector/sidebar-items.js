@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"enum":["GpuBackendType"],"fn":["detect_available_backends","get_backend_info","get_backend_performance_info","select_best_backend"],"struct":["BackendPerformanceInfo"]};

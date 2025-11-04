@@ -1,0 +1,9 @@
+(function() {
+    var implementors = Object.fromEntries([["hive_gpu",[["impl <a class=\"trait\" href=\"https://doc.rust-lang.org/1.91.0/core/default/trait.Default.html\" title=\"trait core::default::Default\">Default</a> for <a class=\"struct\" href=\"hive_gpu/monitoring/performance_monitor/struct.PerformanceMonitor.html\" title=\"struct hive_gpu::monitoring::performance_monitor::PerformanceMonitor\">PerformanceMonitor</a>"],["impl <a class=\"trait\" href=\"https://doc.rust-lang.org/1.91.0/core/default/trait.Default.html\" title=\"trait core::default::Default\">Default</a> for <a class=\"struct\" href=\"hive_gpu/shaders/metal_shaders/struct.MetalShaderManager.html\" title=\"struct hive_gpu::shaders::metal_shaders::MetalShaderManager\">MetalShaderManager</a>"],["impl <a class=\"trait\" href=\"https://doc.rust-lang.org/1.91.0/core/default/trait.Default.html\" title=\"trait core::default::Default\">Default</a> for <a class=\"struct\" href=\"hive_gpu/shaders/wgsl_shaders/struct.WgslShaderManager.html\" title=\"struct hive_gpu::shaders::wgsl_shaders::WgslShaderManager\">WgslShaderManager</a>"],["impl <a class=\"trait\" href=\"https://doc.rust-lang.org/1.91.0/core/default/trait.Default.html\" title=\"trait core::default::Default\">Default</a> for <a class=\"struct\" href=\"hive_gpu/types/struct.HnswConfig.html\" title=\"struct hive_gpu::types::HnswConfig\">HnswConfig</a>"]]]]);
+    if (window.register_implementors) {
+        window.register_implementors(implementors);
+    } else {
+        window.pending_implementors = implementors;
+    }
+})()
+//{"start":57,"fragment_lengths":[1334]}
