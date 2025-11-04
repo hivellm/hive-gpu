@@ -47,6 +47,7 @@ jobs:
         with:
           toolchain: ${{ matrix.rust }}
           targets: ${{ matrix.target }}
+          components: rustfmt, clippy
 
       - name: Cache cargo registry
         uses: actions/cache@v3
@@ -102,19 +103,19 @@ jobs:
 
   # Build and test with different feature combinations
   feature-test:
-    name: Feature Test - ${{ matrix.features }}
+    name: Feature Test - ${{ matrix.name }}
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        features:
-          - ""
-          - "metal-native"
-          - "cuda"
-
-          - "metal-native,cuda"
-          - "metal-native"
-          - "cuda"
-          - "metal-native,cuda"
+        include:
+          - name: "default"
+            features: ""
+          - name: "metal-native"
+            features: "metal-native"
+          - name: "cuda"
+            features: "cuda"
+          - name: "metal-cuda"
+            features: "metal-native,cuda"
 
     steps:
       - name: Checkout code
@@ -130,7 +131,7 @@ jobs:
             ~/.cargo/registry
             ~/.cargo/git
             target
-          key: ${{ runner.os }}-cargo-${{ matrix.features }}-${{ hashFiles('**/Cargo.lock') }}
+          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}-${{ hashFiles('Cargo.toml') }}
           restore-keys: |
             ${{ runner.os }}-cargo-
 
@@ -176,6 +177,8 @@ jobs:
   docs:
     name: Build Documentation
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
