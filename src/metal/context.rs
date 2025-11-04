@@ -6,18 +6,23 @@
 use crate::error::{HiveGpuError, Result};
 use crate::traits::{GpuBackend, GpuContext};
 use crate::types::{GpuCapabilities, GpuDeviceInfo, GpuMemoryStats};
-use metal::{CommandQueue, Device as MetalDevice, Library, MTLGPUFamily, MTLSize};
+use objc2::rc::Retained;
+use objc2::runtime::ProtocolObject;
+use objc2_metal::{
+    MTLCommandQueue, MTLCompileOptions, MTLCreateSystemDefaultDevice, MTLDevice, MTLGPUFamily,
+    MTLLibrary, MTLSize,
+};
 use std::process::Command;
 use std::sync::Arc;
-use tracing::{debug, info, warn};
+use tracing::{debug, warn};
 
 /// Metal Native Context - Single source of truth
 #[cfg(all(target_os = "macos", feature = "metal-native"))]
 #[derive(Debug, Clone)]
 pub struct MetalNativeContext {
-    device: MetalDevice,
-    command_queue: CommandQueue,
-    library: Library,
+    device: Retained<ProtocolObject<dyn MTLDevice>>,
+    command_queue: Retained<ProtocolObject<dyn MTLCommandQueue>>,
+    library: Retained<ProtocolObject<dyn MTLLibrary>>,
 }
 
 #[cfg(all(target_os = "macos", feature = "metal-native"))]
@@ -25,9 +30,11 @@ impl MetalNativeContext {
     /// Create new Metal native context
     pub fn new() -> Result<Self> {
         let device =
-            MetalDevice::system_default().ok_or_else(|| HiveGpuError::NoDeviceAvailable)?;
+            MTLCreateSystemDefaultDevice().ok_or_else(|| HiveGpuError::NoDeviceAvailable)?;
 
-        let command_queue = device.new_command_queue();
+        let command_queue = device
+            .newCommandQueue()
+            .ok_or_else(|| HiveGpuError::Other("Failed to create command queue".to_string()))?;
 
         // Load Metal library with HNSW shaders
         let library = Self::load_metal_library(&device)?;
@@ -42,12 +49,12 @@ impl MetalNativeContext {
     }
 
     /// Get Metal device
-    pub fn device(&self) -> &MetalDevice {
+    pub fn device(&self) -> &ProtocolObject<dyn MTLDevice> {
         &self.device
     }
 
     /// Get command queue
-    pub fn command_queue(&self) -> &CommandQueue {
+    pub fn command_queue(&self) -> &ProtocolObject<dyn MTLCommandQueue> {
         &self.command_queue
     }
 
@@ -60,12 +67,12 @@ impl MetalNativeContext {
     pub fn supports_mps(&self) -> bool {
         // Check if device supports MPS (Metal Performance Shaders)
         // This is a simplified check - in practice you'd check specific MPS features
-        self.device.supports_family(MTLGPUFamily::Apple7)
+        unsafe { self.device.supportsFamily(MTLGPUFamily::Apple7) }
     }
 
     /// Get maximum threadgroup size for compute shaders
     pub fn max_threadgroup_size(&self) -> MTLSize {
-        self.device.max_threads_per_threadgroup()
+        self.device.maxThreadsPerThreadgroup()
     }
 
     /// Get maximum buffer size
@@ -76,28 +83,35 @@ impl MetalNativeContext {
     }
 
     /// Get Metal library
-    pub fn library(&self) -> &Library {
+    pub fn library(&self) -> &ProtocolObject<dyn MTLLibrary> {
         &self.library
     }
 
     /// Load Metal library with HNSW shaders
-    fn load_metal_library(device: &MetalDevice) -> Result<Library> {
+    fn load_metal_library(
+        device: &ProtocolObject<dyn MTLDevice>,
+    ) -> Result<Retained<ProtocolObject<dyn MTLLibrary>>> {
         // Load the Metal shader source
         let shader_source = include_str!("../shaders/metal_hnsw.metal");
 
-        let options = metal::CompileOptions::new();
-        let library = device
-            .new_library_with_source(shader_source, &options)
-            .map_err(|e| {
-                HiveGpuError::ShaderCompilationFailed(format!(
-                    "Failed to compile Metal shaders: {:?}",
-                    e
-                ))
-            })?;
+        // Create NSString from shader source
+        let ns_source = objc2_foundation::NSString::from_str(shader_source);
+        let options = MTLCompileOptions::new();
+
+        let library = unsafe {
+            device
+                .newLibraryWithSource_options_error(&ns_source, Some(&options))
+                .map_err(|e| {
+                    HiveGpuError::ShaderCompilationFailed(format!(
+                        "Failed to compile Metal shaders: {:?}",
+                        e
+                    ))
+                })?
+        };
 
         debug!(
             "✅ Metal library loaded with {} functions",
-            library.function_names().len()
+            library.functionNames().count()
         );
         Ok(library)
     }
@@ -124,8 +138,8 @@ impl MetalNativeContext {
 impl GpuBackend for MetalNativeContext {
     fn device_info(&self) -> GpuDeviceInfo {
         // Get VRAM information
-        let recommended_max = self.device.recommended_max_working_set_size();
-        let current_allocated = self.device.current_allocated_size();
+        let recommended_max = self.device.recommendedMaxWorkingSetSize();
+        let current_allocated = self.device.currentAllocatedSize() as u64;
         let available = recommended_max.saturating_sub(current_allocated);
 
         // Get macOS version
@@ -133,7 +147,7 @@ impl GpuBackend for MetalNativeContext {
             Self::get_macos_version().unwrap_or_else(|_| "macOS Unknown".to_string());
 
         // Get max threadgroup size
-        let max_threads = self.device.max_threads_per_threadgroup();
+        let max_threads = self.device.maxThreadsPerThreadgroup();
         let max_threads_per_block =
             (max_threads.width * max_threads.height * max_threads.depth) as u32;
 

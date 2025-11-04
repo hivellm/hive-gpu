@@ -7,9 +7,11 @@ use super::context::MetalNativeContext;
 use crate::error::{HiveGpuError, Result};
 use crate::traits::GpuVectorStorage;
 use crate::types::{GpuDistanceMetric, GpuSearchResult, GpuVector};
-use metal::{
-    Buffer as MetalBuffer, Device as MetalDevice, MTLCPUCacheMode, MTLResourceOptions,
-    MTLStorageMode,
+use objc2::rc::Retained;
+use objc2::runtime::ProtocolObject;
+use objc2_metal::{
+    MTLBlitCommandEncoder, MTLBuffer, MTLCommandBuffer, MTLCommandEncoder, MTLCommandQueue,
+    MTLDevice, MTLResourceOptions, MTLStorageMode,
 };
 use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
@@ -29,8 +31,8 @@ pub struct VectorMetadata {
 #[derive(Debug)]
 pub struct MetalNativeVectorStorage {
     context: Arc<MetalNativeContext>,
-    pub vectors_buffer: MetalBuffer, // Made public for GPU search access
-    metadata_buffer: MetalBuffer,
+    pub vectors_buffer: Retained<ProtocolObject<dyn MTLBuffer>>, // Made public for GPU search access
+    metadata_buffer: Retained<ProtocolObject<dyn MTLBuffer>>,
     vector_count: usize,
     buffer_capacity: usize, // Total capacity in vectors
     dimension: usize,
@@ -66,16 +68,17 @@ impl MetalNativeVectorStorage {
             })?;
 
         // Create vectors buffer (VRAM only, no CPU access)
-        let vectors_buffer = device.new_buffer(
-            initial_size as u64,
-            MTLResourceOptions::StorageModePrivate, // VRAM only, fastest
-        );
+        let vectors_buffer = device
+            .newBufferWithLength_options(initial_size, MTLResourceOptions::StorageModePrivate)
+            .ok_or_else(|| HiveGpuError::Other("Failed to create vectors buffer".to_string()))?;
 
         // Create metadata buffer (VRAM only)
-        let metadata_buffer = device.new_buffer(
-            initial_capacity as u64 * 256,          // 256 bytes per vector metadata
-            MTLResourceOptions::StorageModePrivate, // VRAM only
-        );
+        let metadata_buffer = device
+            .newBufferWithLength_options(
+                initial_capacity * 256, // 256 bytes per vector metadata
+                MTLResourceOptions::StorageModePrivate,
+            )
+            .ok_or_else(|| HiveGpuError::Other("Failed to create metadata buffer".to_string()))?;
 
         debug!(
             "✅ Metal native vector storage created (VRAM only) with capacity: {}",
@@ -155,28 +158,39 @@ impl MetalNativeVectorStorage {
             .checked_mul(std::mem::size_of::<f32>())
             .ok_or_else(|| HiveGpuError::Other("Staging size calculation overflow".to_string()))?;
 
-        let staging_buffer = device.new_buffer_with_data(
-            vector_data.as_ptr() as *const std::ffi::c_void,
-            staging_size as u64,
-            MTLResourceOptions::StorageModeShared, // CPU accessible for upload
-        );
+        let staging_buffer = unsafe {
+            device
+                .newBufferWithBytes_length_options(
+                    std::ptr::NonNull::new_unchecked(vector_data.as_ptr() as *mut std::ffi::c_void),
+                    staging_size,
+                    MTLResourceOptions::StorageModeShared, // CPU accessible for upload
+                )
+                .ok_or_else(|| HiveGpuError::Other("Failed to create staging buffer".to_string()))?
+        };
 
         // Copy from staging to VRAM buffer
-        let command_buffer = queue.new_command_buffer();
-        let blit_encoder = command_buffer.new_blit_command_encoder();
+        let command_buffer = queue
+            .commandBuffer()
+            .ok_or_else(|| HiveGpuError::Other("Failed to create command buffer".to_string()))?;
 
-        blit_encoder.copy_from_buffer(
-            &staging_buffer,
-            0,
-            &self.vectors_buffer,
-            offset as u64,
-            staging_size as u64,
-        );
+        let blit_encoder = command_buffer
+            .blitCommandEncoder()
+            .ok_or_else(|| HiveGpuError::Other("Failed to create blit encoder".to_string()))?;
 
-        blit_encoder.end_encoding();
+        unsafe {
+            blit_encoder.copyFromBuffer_sourceOffset_toBuffer_destinationOffset_size(
+                &staging_buffer,
+                0,
+                &self.vectors_buffer,
+                offset,
+                staging_size,
+            );
+        }
+
+        blit_encoder.endEncoding();
 
         command_buffer.commit();
-        command_buffer.wait_until_completed();
+        command_buffer.waitUntilCompleted();
 
         // Update state with proper ID tracking
         let index = self.vector_count;
@@ -249,17 +263,26 @@ impl MetalNativeVectorStorage {
         );
 
         // Create new larger buffer
-        let new_vectors_buffer =
-            device.new_buffer(new_size as u64, MTLResourceOptions::StorageModePrivate);
+        let new_vectors_buffer = device
+            .newBufferWithLength_options(new_size, MTLResourceOptions::StorageModePrivate)
+            .ok_or_else(|| {
+                HiveGpuError::Other("Failed to create new vectors buffer".to_string())
+            })?;
 
-        let new_metadata_buffer = device.new_buffer(
-            new_capacity as u64 * 256,
-            MTLResourceOptions::StorageModePrivate,
-        );
+        let new_metadata_buffer = device
+            .newBufferWithLength_options(new_capacity * 256, MTLResourceOptions::StorageModePrivate)
+            .ok_or_else(|| {
+                HiveGpuError::Other("Failed to create new metadata buffer".to_string())
+            })?;
 
         // Copy existing data to new buffer
-        let command_buffer = queue.new_command_buffer();
-        let blit_encoder = command_buffer.new_blit_command_encoder();
+        let command_buffer = queue
+            .commandBuffer()
+            .ok_or_else(|| HiveGpuError::Other("Failed to create command buffer".to_string()))?;
+
+        let blit_encoder = command_buffer
+            .blitCommandEncoder()
+            .ok_or_else(|| HiveGpuError::Other("Failed to create blit encoder".to_string()))?;
 
         let current_size = self
             .vector_count
@@ -267,17 +290,19 @@ impl MetalNativeVectorStorage {
             .and_then(|x| x.checked_mul(std::mem::size_of::<f32>()))
             .ok_or_else(|| HiveGpuError::Other("Current size calculation overflow".to_string()))?;
 
-        blit_encoder.copy_from_buffer(
-            &self.vectors_buffer,
-            0,
-            &new_vectors_buffer,
-            0,
-            current_size as u64,
-        );
+        unsafe {
+            blit_encoder.copyFromBuffer_sourceOffset_toBuffer_destinationOffset_size(
+                &self.vectors_buffer,
+                0,
+                &new_vectors_buffer,
+                0,
+                current_size,
+            );
+        }
 
-        blit_encoder.end_encoding();
+        blit_encoder.endEncoding();
         command_buffer.commit();
-        command_buffer.wait_until_completed();
+        command_buffer.waitUntilCompleted();
 
         // Replace old buffer with new one
         self.vectors_buffer = new_vectors_buffer;

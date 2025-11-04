@@ -27,13 +27,14 @@ tokio = { version = "1.40", features = ["full"] }
 
 # Optional GPU backends
 [target.'cfg(target_os = "macos")'.dependencies]
-metal = { version = "0.27", optional = true }
-objc = { version = "0.2", optional = true }
+objc2-metal = { version = "0.3", optional = true }
+objc2-foundation = { version = "0.3", optional = true }
+objc2 = { version = "0.6", optional = true }
 
 [features]
 default = ["metal-native"]
-# Pure Metal Native implementation
-metal-native = ["metal", "objc"]
+# Pure Metal Native implementation with objc2
+metal-native = ["objc2-metal", "objc2-foundation", "objc2"]
 # CUDA native implementation (placeholder for now)
 cuda = [] # cudarc = { version = "0.13", optional = true }
 

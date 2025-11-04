@@ -4,6 +4,9 @@
 
 use super::context::MetalNativeContext;
 use crate::error::{HiveGpuError, Result};
+use objc2::rc::Retained;
+use objc2::runtime::ProtocolObject;
+use objc2_metal::MTLBuffer;
 use std::sync::Arc;
 
 /// Metal Buffer Pool
@@ -22,7 +25,7 @@ impl MetalBufferPool {
     }
 
     /// Get buffer from pool
-    pub fn get_buffer(&mut self, size: usize) -> Result<metal::Buffer> {
+    pub fn get_buffer(&mut self, size: usize) -> Result<Retained<ProtocolObject<dyn MTLBuffer>>> {
         // This is a placeholder implementation
         Err(HiveGpuError::Other(
             "Buffer pool not implemented yet".to_string(),
@@ -30,7 +33,7 @@ impl MetalBufferPool {
     }
 
     /// Return buffer to pool
-    pub fn return_buffer(&mut self, buffer: metal::Buffer) -> Result<()> {
+    pub fn return_buffer(&mut self, buffer: Retained<ProtocolObject<dyn MTLBuffer>>) -> Result<()> {
         // This is a placeholder implementation
         Ok(())
     }

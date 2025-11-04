@@ -71,9 +71,9 @@ pub fn select_best_backend() -> Result<GpuBackendType> {
 /// Check if Metal is available on the current system
 #[cfg(all(target_os = "macos", feature = "metal-native"))]
 fn is_metal_available() -> bool {
-    use metal::Device;
+    use objc2_metal::MTLCreateSystemDefaultDevice;
 
-    Device::system_default().is_some()
+    MTLCreateSystemDefaultDevice().is_some()
 }
 
 /// Check if CUDA is available on the current system
@@ -90,8 +90,8 @@ pub fn get_backend_info(backend: GpuBackendType) -> Result<String> {
         GpuBackendType::Metal => {
             #[cfg(all(target_os = "macos", feature = "metal-native"))]
             {
-                use metal::Device;
-                if let Some(device) = Device::system_default() {
+                use objc2_metal::{MTLCreateSystemDefaultDevice, MTLDevice};
+                if let Some(device) = MTLCreateSystemDefaultDevice() {
                     Ok(format!("Metal device: {}", device.name()))
                 } else {
                     Err(HiveGpuError::NoDeviceAvailable)
