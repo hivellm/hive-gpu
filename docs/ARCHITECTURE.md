@@ -100,8 +100,20 @@
 - Optimized for Apple Silicon (M1/M2/M3/M4)
 - Support for Metal Performance Shaders (MPS)
 - VRAM-only storage for maximum performance
+- Modern type-safe Rust bindings via objc2-metal (v0.1.8+)
 
-**Dependencies:** `metal` crate, `objc` crate
+**Dependencies:** 
+- `objc2-metal` v0.3 - Metal framework bindings (actively maintained)
+- `objc2-foundation` v0.3 - Foundation framework support  
+- `objc2` v0.6 - Modern Objective-C interop
+
+**Migration Note (v0.1.8):**
+Migrated from discontinued `metal-rs` to actively maintained `objc2-metal` for:
+- Active maintenance and security updates
+- Modern type-safe bindings with `ProtocolObject<dyn Trait>` pattern
+- Full Metal API coverage and integrated Foundation support
+
+See `docs/guides/MIGRATION_METAL_OBJC2.md` for migration details.
 
 ### 5. **CUDA Backend Module** (`src/cuda/`)
 
