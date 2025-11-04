@@ -20,6 +20,15 @@ hive-gpu = { version = "0.1.7", features = ["metal-native"] }  # macOS
 hive-gpu = { version = "0.1.7", features = ["cuda"] }          # Linux/Windows
 ```
 
+### Metal Backend (macOS)
+
+The Metal backend uses modern, type-safe Rust bindings:
+- **objc2-metal** - Metal framework bindings
+- **objc2-foundation** - Foundation framework support
+- **objc2** - Modern Objective-C interop
+
+**Note**: As of v0.1.8, we migrated from the discontinued `metal-rs` to the actively maintained `objc2-metal` ecosystem for better security, maintenance, and type safety. See [Migration Guide](docs/guides/MIGRATION_METAL_OBJC2.md) for details.
+
 ## 🎯 Features
 
 - **🔥 GPU Acceleration**: Metal Native (macOS) and CUDA (Linux/Windows) support
@@ -29,6 +38,7 @@ hive-gpu = { version = "0.1.7", features = ["cuda"] }          # Linux/Windows
 - **🔄 Batch Processing**: Efficient batch operations
 - **🛡️ Type Safety**: Rust's type system for GPU operations
 - **📱 Cross-Platform**: macOS, Linux, Windows support
+- **🔐 Modern Bindings**: Uses `objc2-metal` for type-safe Metal API access
 
 ## 🚀 Quick Start
 

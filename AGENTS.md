@@ -255,6 +255,25 @@ async fn fetch_data() -> Result<Data, Error> {
 - ❌ Don't use outdated versions without justification
 - ❌ Don't add dependencies without checking latest version
 
+### Metal Backend Dependencies (macOS)
+
+**IMPORTANT**: This project uses the modern `objc2-metal` ecosystem:
+
+```toml
+[target.'cfg(target_os = "macos")'.dependencies]
+objc2-metal = "0.3"       # Metal framework bindings
+objc2-foundation = "0.3"  # Foundation framework (NSString, etc.)
+objc2 = "0.6"             # Modern Objective-C interop
+```
+
+**Migration Note**: We migrated from the discontinued `metal-rs` to `objc2-metal` in v0.1.8 for:
+- ✅ Active maintenance and security updates
+- ✅ Modern type-safe Rust bindings (`ProtocolObject<dyn Trait>` pattern)
+- ✅ Full Metal API coverage
+- ✅ Integrated Foundation framework support
+
+See `docs/guides/MIGRATION_METAL_OBJC2.md` for migration guide.
+
 ## Codespell Configuration
 
 **CRITICAL**: Use codespell to catch typos in code and documentation.

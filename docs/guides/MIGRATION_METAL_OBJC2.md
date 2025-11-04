@@ -2,612 +2,430 @@
 
 ## Overview
 
-This guide documents the migration from the deprecated `metal-rs` crate to the modern `objc2-metal` framework for the Hive-GPU Metal backend implementation.
+This guide documents the migration from the discontinued `metal-rs` library to the actively maintained `objc2-metal` ecosystem. This migration was necessary for security, maintenance, and future-proofing.
 
-## Table of Contents
+## Why Migrate?
 
-- [Background](#background)
-- [Why Migrate](#why-migrate)
-- [Key Changes](#key-changes)
-- [Migration Steps](#migration-steps)
-- [API Mapping](#api-mapping)
-- [Common Patterns](#common-patterns)
-- [Testing Strategy](#testing-strategy)
-- [Performance Considerations](#performance-considerations)
-- [Troubleshooting](#troubleshooting)
+### Problems with metal-rs
+- **Discontinued**: No longer maintained or updated
+- **Security**: No security patches or vulnerability fixes
+- **Type Safety**: Older Objective-C bindings with less type safety
+- **API Gaps**: Missing newer Metal API features
 
-## Background
+### Benefits of objc2-metal
+- **Actively Maintained**: Regular updates and security patches
+- **Type Safe**: Modern Rust bindings with `ProtocolObject<dyn Trait>` pattern
+- **Complete API**: Full coverage of Metal framework
+- **Foundation Support**: Integrated with objc2-foundation for NSString, etc.
 
-### metal-rs (Deprecated)
+## Dependency Changes
 
-The `metal-rs` crate provided Rust bindings for Apple's Metal framework but has been discontinued due to lack of maintenance in the `objc` 0.2 ecosystem.
-
-```toml
-# OLD (Deprecated)
-metal = "0.27"
-objc = "0.2"
-```
-
-### objc2-metal (Current)
-
-The `objc2-metal` framework provides modern, actively maintained bindings built on `objc2`, offering better safety, performance, and alignment with current Rust practices.
-
-```toml
-# NEW (Recommended)
-objc2-metal = "0.2"
-objc2-foundation = "0.2"
-objc2 = "0.5"
-```
-
-## Why Migrate
-
-### Critical Reasons
-
-1. **Security**: No security patches for metal-rs
-2. **Maintenance**: No active development or bug fixes
-3. **Features**: Missing access to newer Metal APIs
-4. **Ecosystem**: Rust-objc community has moved to objc2
-5. **Safety**: objc2 provides better type safety and lifetime management
-
-### Benefits
-
-- ✅ **Active Maintenance**: Regular updates with latest Metal features
-- ✅ **Modern Rust**: Follows current Rust idioms and patterns
-- ✅ **Better Safety**: Improved type-safe bindings
-- ✅ **Performance**: Potential optimizations in newer bindings
-- ✅ **Future-Proof**: Aligned with ecosystem direction
-- ✅ **MPS Support**: Full access to Metal Performance Shaders (148K+ examples)
-
-## Key Changes
-
-### Dependency Changes
-
-```diff
-  [dependencies]
-- metal = { version = "0.27", optional = true }
-- objc = { version = "0.2", optional = true }
-+ objc2-metal = { version = "0.2", optional = true }
-+ objc2-foundation = { version = "0.2", optional = true }
-+ objc2 = { version = "0.5", optional = true }
-```
-
-### Import Changes
-
-```diff
-- use metal::{Device, CommandQueue, Buffer, MTLSize};
-- use objc::rc::StrongPtr;
-+ use objc2_metal::{MTLDevice, MTLCommandQueue, MTLBuffer, MTLSize};
-+ use objc2::rc::Retained;
-+ use objc2_foundation::NSString;
-```
-
-### Naming Convention Changes
-
-objc2-metal uses more explicit Objective-C naming:
-
-- `Device` → `MTLDevice`
-- `CommandQueue` → `MTLCommandQueue`
-- `Buffer` → `MTLBuffer`
-- `Library` → `MTLLibrary`
-- Methods follow Objective-C conventions more closely
-
-## Migration Steps
-
-### Step 1: Update Dependencies
-
-Update `Cargo.toml`:
-
+### Before (metal-rs)
 ```toml
 [target.'cfg(target_os = "macos")'.dependencies]
-objc2-metal = { version = "0.2", optional = true }
-objc2-foundation = { version = "0.2", optional = true }
-objc2 = { version = "0.5", optional = true }
+metal = { version = "0.27", optional = true }
+objc = { version = "0.2", optional = true }
+
+[features]
+metal-native = ["metal", "objc"]
+```
+
+### After (objc2-metal)
+```toml
+[target.'cfg(target_os = "macos")'.dependencies]
+objc2-metal = { version = "0.3", optional = true }
+objc2-foundation = { version = "0.3", optional = true }
+objc2 = { version = "0.6", optional = true }
 
 [features]
 metal-native = ["objc2-metal", "objc2-foundation", "objc2"]
 ```
 
-### Step 2: Update Imports
+## Key API Changes
 
-Replace all metal-rs imports with objc2-metal equivalents:
+### 1. Import Changes
 
+**Before:**
 ```rust
-// Before
+use metal::{Device, CommandQueue, Library, Buffer, MTLSize};
+```
+
+**After:**
+```rust
+use objc2::rc::Retained;
+use objc2::runtime::ProtocolObject;
+use objc2_metal::{
+    MTLDevice, MTLCommandQueue, MTLLibrary, MTLBuffer, MTLSize,
+    MTLCreateSystemDefaultDevice,
+};
+```
+
+### 2. Device Type Changes
+
+**Before:**
+```rust
+struct Context {
+    device: metal::Device,
+}
+```
+
+**After:**
+```rust
+struct Context {
+    device: Retained<ProtocolObject<dyn MTLDevice>>,
+}
+```
+
+**Why**: Metal types are Objective-C protocols, not concrete types. `objc2` uses `ProtocolObject<dyn Trait>` wrapped in `Retained<>` for automatic reference counting.
+
+### 3. Device Creation
+
+**Before:**
+```rust
+let device = metal::Device::system_default()
+    .ok_or_else(|| Error::NoDevice)?;
+```
+
+**After:**
+```rust
+let device = unsafe { MTLCreateSystemDefaultDevice() }
+    .ok_or_else(|| Error::NoDevice)?;
+```
+
+**Note**: Device creation requires `unsafe` as it's a C FFI call.
+
+### 4. Method Naming Convention
+
+**Before (snake_case):**
+```rust
+device.new_buffer(size, options)
+device.new_command_queue()
+command_buffer.new_blit_command_encoder()
+```
+
+**After (camelCase):**
+```rust
+device.newBufferWithLength_options(size, options)
+device.newCommandQueue()
+command_buffer.blitCommandEncoder()
+```
+
+**Why**: `objc2` uses Objective-C naming conventions directly.
+
+### 5. Buffer Creation
+
+**Before:**
+```rust
+let buffer = device.new_buffer(
+    1024,
+    MTLResourceOptions::StorageModePrivate
+)?;
+```
+
+**After:**
+```rust
+let buffer = device
+    .newBufferWithLength_options(
+        1024,
+        MTLResourceOptions::StorageModePrivate
+    )
+    .ok_or_else(|| Error::BufferCreation)?;
+```
+
+### 6. Buffer Creation with Data
+
+**Before:**
+```rust
+let buffer = device.new_buffer_with_data(
+    data.as_ptr() as *const _,
+    data.len() as u64,
+    MTLResourceOptions::StorageModeShared
+)?;
+```
+
+**After:**
+```rust
+use std::ptr::NonNull;
+
+let buffer = unsafe {
+    device.newBufferWithBytes_length_options(
+        NonNull::new_unchecked(data.as_ptr() as *mut c_void),
+        data.len(),
+        MTLResourceOptions::StorageModeShared
+    )
+}.ok_or_else(|| Error::BufferCreation)?;
+```
+
+**Important**: 
+- Size type changed from `u64` to `usize`
+- Pointer must be wrapped in `NonNull<c_void>`
+- Requires `unsafe` block
+
+### 7. Command Buffer Operations
+
+**Before:**
+```rust
+let command_buffer = queue.new_command_buffer();
+let blit_encoder = command_buffer.new_blit_command_encoder();
+
+blit_encoder.copy_from_buffer(
+    &src_buffer,
+    0,
+    &dst_buffer,
+    0,
+    size
+);
+
+blit_encoder.end_encoding();
+command_buffer.commit();
+command_buffer.wait_until_completed();
+```
+
+**After:**
+```rust
+let command_buffer = queue.commandBuffer()
+    .ok_or_else(|| Error::CommandBuffer)?;
+
+let blit_encoder = command_buffer.blitCommandEncoder()
+    .ok_or_else(|| Error::BlitEncoder)?;
+
+unsafe {
+    blit_encoder.copyFromBuffer_sourceOffset_toBuffer_destinationOffset_size(
+        &src_buffer,
+        0,
+        &dst_buffer,
+        0,
+        size
+    );
+}
+
+blit_encoder.endEncoding();
+command_buffer.commit();
+command_buffer.waitUntilCompleted();
+```
+
+### 8. Trait Imports for Methods
+
+**Problem**: Method not found errors like:
+```
+error: no method named `endEncoding` found for struct `Retained<ProtocolObject<dyn MTLBlitCommandEncoder>>`
+```
+
+**Solution**: Import the trait:
+```rust
+use objc2_metal::MTLCommandEncoder;  // For endEncoding()
+use objc2_metal::MTLDevice;          // For device methods like name()
+```
+
+**Why**: `objc2` uses traits to provide methods on protocol objects. You must import the trait to access its methods.
+
+### 9. Resource Options
+
+**Before:**
+```rust
+MTLResourceOptions::StorageModePrivate
+MTLResourceOptions::CPUCacheModeDefaultCache
+```
+
+**After:**
+```rust
+MTLResourceOptions::StorageModePrivate  // Still works
+// Or use MTLStorageMode enum:
+MTLStorageMode::Private
+MTLStorageMode::Shared
+```
+
+**Note**: Both `MTLResourceOptions` and `MTLStorageMode` are available in objc2-metal.
+
+### 10. String Conversion
+
+**Before:**
+```rust
+device.name()  // Returns String directly
+```
+
+**After:**
+```rust
+use objc2_foundation::NSString;
+
+let name = device.name();  // Returns &NSString
+let name_string = name.to_string();  // Convert to String
+```
+
+**For shader source:**
+```rust
+use objc2_foundation::NSString;
+
+let source = "...shader code...";
+let ns_source = NSString::from_str(source);
+
+let library = unsafe {
+    device.newLibraryWithSource_options_error(&ns_source, Some(&options))
+}.ok_or_else(|| Error::ShaderCompilation)?;
+```
+
+## Complete Migration Example
+
+### Before (metal-rs)
+```rust
 use metal::{Device, CommandQueue, Buffer, MTLResourceOptions};
 
-// After
-use objc2_metal::{MTLDevice, MTLCommandQueue, MTLBuffer, MTLResourceOptions};
-```
-
-### Step 3: Update Type Names
-
-Rename types to follow objc2-metal conventions:
-
-```rust
-// Before
-let device: Device = ...;
-let queue: CommandQueue = ...;
-
-// After
-let device: &MTLDevice = ...;
-let queue: &MTLCommandQueue = ...;
-```
-
-### Step 4: Update Method Calls
-
-Method names follow Objective-C conventions more closely:
-
-```rust
-// Before (metal-rs)
-let device = metal::Device::system_default()?;
-let queue = device.new_command_queue();
-
-// After (objc2-metal)
-let device = MTLCreateSystemDefaultDevice().ok_or(...)?;
-let queue = device.newCommandQueue();
-```
-
-### Step 5: Update Buffer Creation
-
-Buffer creation uses different patterns:
-
-```rust
-// Before (metal-rs)
-let buffer = device.new_buffer(
-    size,
-    metal::MTLResourceOptions::StorageModePrivate
-);
-
-// After (objc2-metal)
-let buffer = device.newBufferWithLength_options(
-    size,
-    MTLResourceOptions::StorageModePrivate
-);
-```
-
-### Step 6: Update String Handling
-
-Use `NSString` from objc2-foundation:
-
-```rust
-// Before (metal-rs)
-let shader_source = "...metal shader code...";
-
-// After (objc2-metal)
-use objc2_foundation::NSString;
-let shader_source = NSString::from_str("...metal shader code...");
-```
-
-### Step 7: Update Library Compilation
-
-Shader compilation uses new APIs:
-
-```rust
-// Before (metal-rs)
-let library = device
-    .new_library_with_source(shader_source, &options)?;
-
-// After (objc2-metal)
-let library = device
-    .newLibraryWithSource_options_error(&shader_source, None)?;
-```
-
-## API Mapping
-
-### Device Creation
-
-```rust
-// metal-rs
-let device = metal::Device::system_default()
-    .ok_or(HiveGpuError::NoDeviceAvailable)?;
-
-// objc2-metal
-use objc2_metal::MTLCreateSystemDefaultDevice;
-let device = MTLCreateSystemDefaultDevice()
-    .ok_or(HiveGpuError::NoDeviceAvailable)?;
-```
-
-### Command Queue Creation
-
-```rust
-// metal-rs
-let queue = device.new_command_queue();
-
-// objc2-metal
-let queue = device.newCommandQueue();
-```
-
-### Buffer Creation
-
-```rust
-// metal-rs
-let buffer = device.new_buffer(
-    size as u64,
-    MTLResourceOptions::StorageModePrivate
-);
-
-// objc2-metal
-let buffer = device.newBufferWithLength_options(
-    size as u64,
-    MTLResourceOptions::StorageModePrivate
-);
-```
-
-### Library Compilation
-
-```rust
-// metal-rs
-let options = metal::CompileOptions::new();
-let library = device
-    .new_library_with_source(shader_source, &options)
-    .map_err(|e| HiveGpuError::ShaderCompilationFailed(...))?;
-
-// objc2-metal
-use objc2_metal::MTLCompileOptions;
-let options = MTLCompileOptions::new();
-let library = device
-    .newLibraryWithSource_options_error(&shader_source, Some(&options))
-    .map_err(|e| HiveGpuError::ShaderCompilationFailed(...))?;
-```
-
-### GPU Family Checks
-
-```rust
-// metal-rs
-device.supports_family(MTLGPUFamily::Apple7)
-
-// objc2-metal (same)
-device.supportsFamily(MTLGPUFamily::Apple7)
-```
-
-### VRAM Queries
-
-```rust
-// metal-rs
-let max_vram = device.recommended_max_working_set_size();
-let used_vram = device.current_allocated_size();
-
-// objc2-metal
-let max_vram = device.recommendedMaxWorkingSetSize();
-let used_vram = device.currentAllocatedSize();
-```
-
-## Common Patterns
-
-### Pattern 1: Device Initialization
-
-```rust
-use objc2_metal::{MTLCreateSystemDefaultDevice, MTLDevice};
-use std::sync::Arc;
-
-pub struct MetalContext {
-    device: Retained<MTLDevice>,
+struct VectorStorage {
+    device: metal::Device,
+    queue: CommandQueue,
+    buffer: Buffer,
 }
 
-impl MetalContext {
-    pub fn new() -> Result<Self> {
-        let device = MTLCreateSystemDefaultDevice()
-            .ok_or(HiveGpuError::NoDeviceAvailable)?;
+impl VectorStorage {
+    fn new() -> Result<Self> {
+        let device = Device::system_default()
+            .ok_or(Error::NoDevice)?;
         
-        Ok(Self { device })
-    }
-    
-    pub fn device(&self) -> &MTLDevice {
-        &self.device
-    }
-}
-```
-
-### Pattern 2: Buffer Allocation with Staging
-
-```rust
-use objc2_metal::{MTLBuffer, MTLResourceOptions};
-
-fn allocate_buffer(
-    device: &MTLDevice,
-    data: &[f32],
-) -> Result<Retained<MTLBuffer>> {
-    let size = data.len() * std::mem::size_of::<f32>();
-    
-    // Create staging buffer
-    let staging = device.newBufferWithBytes_length_options(
-        data.as_ptr() as *const _,
-        size as u64,
-        MTLResourceOptions::StorageModeShared
-    );
-    
-    // Create GPU-only buffer
-    let gpu_buffer = device.newBufferWithLength_options(
-        size as u64,
-        MTLResourceOptions::StorageModePrivate
-    );
-    
-    // Copy via command buffer
-    let queue = device.newCommandQueue();
-    let cmd_buffer = queue.commandBuffer();
-    let blit = cmd_buffer.blitCommandEncoder();
-    
-    blit.copyFromBuffer_sourceOffset_toBuffer_destinationOffset_size(
-        &staging,
-        0,
-        &gpu_buffer,
-        0,
-        size as u64
-    );
-    
-    blit.endEncoding();
-    cmd_buffer.commit();
-    cmd_buffer.waitUntilCompleted();
-    
-    Ok(gpu_buffer)
-}
-```
-
-### Pattern 3: Compute Pipeline Creation
-
-```rust
-use objc2_metal::{MTLComputePipelineDescriptor, MTLFunction};
-use objc2_foundation::NSString;
-
-fn create_compute_pipeline(
-    device: &MTLDevice,
-    library: &MTLLibrary,
-    function_name: &str,
-) -> Result<Retained<MTLComputePipelineState>> {
-    let name = NSString::from_str(function_name);
-    let function = library.newFunctionWithName(&name)
-        .ok_or(HiveGpuError::ShaderNotFound)?;
-    
-    let pipeline = device
-        .newComputePipelineStateWithFunction_error(&function)
-        .map_err(|e| HiveGpuError::PipelineCreationFailed(...))?;
-    
-    Ok(pipeline)
-}
-```
-
-### Pattern 4: Safe Command Encoding
-
-```rust
-fn dispatch_compute(
-    queue: &MTLCommandQueue,
-    pipeline: &MTLComputePipelineState,
-    buffers: &[&MTLBuffer],
-    grid_size: MTLSize,
-) -> Result<()> {
-    let cmd_buffer = queue.commandBuffer();
-    let encoder = cmd_buffer.computeCommandEncoder();
-    
-    encoder.setComputePipelineState(pipeline);
-    
-    for (index, buffer) in buffers.iter().enumerate() {
-        encoder.setBuffer_offset_atIndex(buffer, 0, index as u64);
-    }
-    
-    let threadgroup_size = MTLSize {
-        width: 256,
-        height: 1,
-        depth: 1,
-    };
-    
-    encoder.dispatchThreads_threadsPerThreadgroup(
-        grid_size,
-        threadgroup_size
-    );
-    
-    encoder.endEncoding();
-    cmd_buffer.commit();
-    cmd_buffer.waitUntilCompleted();
-    
-    Ok(())
-}
-```
-
-## Testing Strategy
-
-### Unit Tests
-
-Test individual components with objc2-metal:
-
-```rust
-#[cfg(all(test, target_os = "macos", feature = "metal-native"))]
-mod tests {
-    use super::*;
-    use objc2_metal::MTLCreateSystemDefaultDevice;
-    
-    #[test]
-    fn test_device_creation() {
-        let device = MTLCreateSystemDefaultDevice();
-        assert!(device.is_some());
-    }
-    
-    #[test]
-    fn test_buffer_allocation() {
-        let device = MTLCreateSystemDefaultDevice().unwrap();
-        let buffer = device.newBufferWithLength_options(
+        let queue = device.new_command_queue();
+        
+        let buffer = device.new_buffer(
             1024,
             MTLResourceOptions::StorageModePrivate
         );
-        assert_eq!(buffer.length(), 1024);
+        
+        Ok(Self { device, queue, buffer })
+    }
+    
+    fn copy_data(&self, data: &[f32]) -> Result<()> {
+        let staging = self.device.new_buffer_with_data(
+            data.as_ptr() as *const _,
+            (data.len() * 4) as u64,
+            MTLResourceOptions::StorageModeShared
+        );
+        
+        let cmd = self.queue.new_command_buffer();
+        let encoder = cmd.new_blit_command_encoder();
+        
+        encoder.copy_from_buffer(&staging, 0, &self.buffer, 0, data.len() * 4);
+        encoder.end_encoding();
+        
+        cmd.commit();
+        cmd.wait_until_completed();
+        
+        Ok(())
     }
 }
 ```
 
-### Integration Tests
-
-Validate end-to-end workflows:
-
+### After (objc2-metal)
 ```rust
-#[test]
-fn test_vector_storage_with_objc2() {
-    let context = MetalNativeContext::new().unwrap();
-    let storage = MetalNativeVectorStorage::new(
-        Arc::new(context),
-        128,
-        GpuDistanceMetric::Cosine
-    ).unwrap();
-    
-    // Test insert
-    let vector = vec![1.0f32; 128];
-    storage.insert_vector("test", &vector, None).unwrap();
-    
-    // Test search
-    let results = storage.search(&vector, 10).unwrap();
-    assert!(!results.is_empty());
+use objc2::rc::Retained;
+use objc2::runtime::ProtocolObject;
+use objc2_metal::{
+    MTLDevice, MTLCommandQueue, MTLBuffer, MTLResourceOptions,
+    MTLCreateSystemDefaultDevice, MTLBlitCommandEncoder, MTLCommandEncoder,
+};
+use std::ptr::NonNull;
+
+struct VectorStorage {
+    device: Retained<ProtocolObject<dyn MTLDevice>>,
+    queue: Retained<ProtocolObject<dyn MTLCommandQueue>>,
+    buffer: Retained<ProtocolObject<dyn MTLBuffer>>,
 }
-```
 
-### Performance Tests
-
-Benchmark to ensure no regression:
-
-```rust
-use criterion::{black_box, criterion_group, criterion_main, Criterion};
-
-fn bench_buffer_allocation(c: &mut Criterion) {
-    let device = MTLCreateSystemDefaultDevice().unwrap();
+impl VectorStorage {
+    fn new() -> Result<Self> {
+        let device = unsafe { MTLCreateSystemDefaultDevice() }
+            .ok_or(Error::NoDevice)?;
+        
+        let queue = device.newCommandQueue()
+            .ok_or(Error::QueueCreation)?;
+        
+        let buffer = device.newBufferWithLength_options(
+            1024,
+            MTLResourceOptions::StorageModePrivate
+        ).ok_or(Error::BufferCreation)?;
+        
+        Ok(Self { device, queue, buffer })
+    }
     
-    c.bench_function("buffer_alloc_objc2", |b| {
-        b.iter(|| {
-            device.newBufferWithLength_options(
-                black_box(1024 * 1024),
-                MTLResourceOptions::StorageModePrivate
+    fn copy_data(&self, data: &[f32]) -> Result<()> {
+        let size = data.len() * std::mem::size_of::<f32>();
+        
+        let staging = unsafe {
+            self.device.newBufferWithBytes_length_options(
+                NonNull::new_unchecked(data.as_ptr() as *mut std::ffi::c_void),
+                size,
+                MTLResourceOptions::StorageModeShared
             )
-        });
-    });
+        }.ok_or(Error::StagingBuffer)?;
+        
+        let cmd = self.queue.commandBuffer()
+            .ok_or(Error::CommandBuffer)?;
+        
+        let encoder = cmd.blitCommandEncoder()
+            .ok_or(Error::BlitEncoder)?;
+        
+        unsafe {
+            encoder.copyFromBuffer_sourceOffset_toBuffer_destinationOffset_size(
+                &staging,
+                0,
+                &self.buffer,
+                0,
+                size as u64
+            );
+        }
+        
+        encoder.endEncoding();
+        cmd.commit();
+        cmd.waitUntilCompleted();
+        
+        Ok(())
+    }
 }
-
-criterion_group!(benches, bench_buffer_allocation);
-criterion_main!(benches);
 ```
 
-## Performance Considerations
+## Common Migration Pitfalls
 
-### Memory Management
+### 1. Missing Trait Imports
+**Error**: "no method named X found"
+**Solution**: Import the corresponding trait (e.g., `MTLDevice`, `MTLCommandEncoder`)
 
-objc2 uses `Retained<T>` for reference counting:
+### 2. Wrong Type Sizes
+**Error**: "expected usize, found u64"
+**Solution**: Cast sizes appropriately: `size as usize` or `size as u64`
 
-- More explicit than metal-rs's `StrongPtr`
-- Better lifetime tracking
-- No performance overhead vs metal-rs
+### 3. Missing Unsafe Blocks
+**Error**: "call to unsafe function requires unsafe block"
+**Solution**: Wrap objc2 calls in `unsafe {}` blocks
 
-### Buffer Operations
+### 4. Pointer Conversion
+**Error**: "expected NonNull<c_void>, found *const _"
+**Solution**: Use `NonNull::new_unchecked(ptr as *mut c_void)`
 
-- Same underlying Metal APIs
-- No performance difference expected
-- May benefit from objc2 optimizations
+### 5. Return Type Changes
+**Error**: Methods now return `Option<Retained<...>>` instead of direct types
+**Solution**: Use `.ok_or_else()` or `?` to handle Options
 
-### Command Encoding
+## Testing Strategy
 
-- Identical dispatch patterns
-- Same GPU execution
-- Potential for better CPU-side performance
+1. **Unit Tests**: Verify each module independently
+2. **Integration Tests**: Test full workflows
+3. **Performance Tests**: Ensure no regressions
+4. **Device Compatibility**: Test on different Apple Silicon chips
 
-## Troubleshooting
+## Rollback Plan
 
-### Common Issues
-
-#### Issue: Method Not Found
-
-```
-error: no method named `new_buffer` found
-```
-
-**Solution**: Use camelCase Objective-C naming:
-```rust
-// Wrong
-device.new_buffer(size, options)
-
-// Correct
-device.newBufferWithLength_options(size, options)
+If migration fails:
+```bash
+git checkout pre-objc2-migration
 ```
 
-#### Issue: Type Mismatch
+## Resources
 
-```
-error: expected `&MTLDevice`, found `Device`
-```
+- [objc2 Documentation](https://docs.rs/objc2)
+- [objc2-metal Documentation](https://docs.rs/objc2-metal)
+- [objc2-foundation Documentation](https://docs.rs/objc2-foundation)
+- [Metal API Reference](https://developer.apple.com/documentation/metal)
 
-**Solution**: Update type names to MTL-prefixed versions:
-```rust
-// Wrong
-let device: Device = ...;
+## Support
 
-// Correct
-let device: Retained<MTLDevice> = ...;
-```
-
-#### Issue: String Conversion
-
-```
-error: expected `&NSString`, found `&str`
-```
-
-**Solution**: Convert strings explicitly:
-```rust
-use objc2_foundation::NSString;
-let ns_str = NSString::from_str("my string");
-```
-
-#### Issue: Missing Import
-
-```
-error: cannot find type `MTLDevice` in this scope
-```
-
-**Solution**: Import from objc2-metal:
-```rust
-use objc2_metal::{MTLDevice, MTLCreateSystemDefaultDevice};
-```
-
-### Debugging Tips
-
-1. **Check API Documentation**: Use `cargo doc --open` to see objc2-metal docs
-2. **Enable Verbose Logging**: Set `RUST_LOG=debug` to see Metal calls
-3. **Validate Metal Setup**: Use Metal debugger in Xcode
-4. **Compare with Examples**: Check objc2-metal repository examples
-5. **Test Incrementally**: Migrate and test one module at a time
-
-## Reference Documentation
-
-### Official Documentation
-
-- [objc2 Documentation](https://docs.rs/objc2/)
-- [objc2-metal Documentation](https://docs.rs/objc2-metal/)
-- [objc2-foundation Documentation](https://docs.rs/objc2-foundation/)
-- [Apple Metal Documentation](https://developer.apple.com/metal/)
-
-### Community Resources
-
-- [objc2 GitHub Repository](https://github.com/madsmtm/objc2)
-- [Context7 objc2 Examples](https://context7.com/madsmtm/objc2)
-- [Rust GPU Programming Guide](https://rust-gpu.github.io/)
-
-### Internal Documentation
-
-- `docs/ARCHITECTURE.md` - System architecture
-- `docs/API_REFERENCE.md` - API documentation
-- `openspec/changes/migrate-to-objc2-metal/` - Migration spec
-
-## Conclusion
-
-The migration from metal-rs to objc2-metal provides:
-
-- ✅ **Better Safety**: Type-safe, modern Rust patterns
-- ✅ **Active Maintenance**: Regular updates and bug fixes
-- ✅ **Future-Proof**: Aligned with Rust-objc ecosystem
-- ✅ **Performance Parity**: No regression expected
-- ✅ **Improved Developer Experience**: Better documentation and tooling
-
-For questions or issues during migration, refer to:
-- This migration guide
-- objc2-metal documentation  
-- Metal backend specification in `openspec/`
-- Community resources and examples
-
----
-
-**Last Updated**: 2025-01-07  
-**Migration Version**: v0.1.7 → v0.1.8 (or v0.2.0)  
-**Status**: Ready for implementation
-
+For issues or questions about this migration:
+- Check project issues on GitHub
+- Refer to OpenSpec change: `migrate-to-objc2-metal`
+- Review CHANGELOG.md for migration notes
