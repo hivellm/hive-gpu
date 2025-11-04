@@ -42,8 +42,12 @@ jobs:
     - name: Build
       run: cargo build --tests --workspace
     
-    - name: Run tests
+    - name: Run tests (without doctests)
       run: cargo nextest run --workspace
+    
+    - name: Run doctests (macOS only)
+      if: matrix.os == 'macos-latest'
+      run: cargo test --doc --workspace
     
     - name: Upload test report
       uses: actions/upload-artifact@v4
@@ -54,6 +58,7 @@ jobs:
         if-no-files-found: ignore
     
     - name: Security audit
+      shell: bash
       run: |
         echo "Running security audit..."
         cargo install cargo-audit --locked 2>/dev/null || true

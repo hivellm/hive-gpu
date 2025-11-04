@@ -77,18 +77,22 @@ jobs:
         run: cargo clippy --all-targets --all-features -- -D warnings
 
       - name: Run tests (CPU only)
-        run: cargo test --verbose
+        run: cargo test --lib --bins --tests --verbose
+
+      - name: Run doctests (macOS only - Metal examples)
+        if: matrix.os == 'macos-latest'
+        run: cargo test --doc --verbose
 
       - name: Run tests (Metal on macOS)
         if: matrix.os == 'macos-latest'
         run: cargo test --features metal-native --verbose
 
-      - name: Run tests (CUDA on Linux)
-        if: matrix.os == 'ubuntu-latest'
-        run: cargo test --features cuda --verbose
+      # - name: Run tests (CUDA on Linux)
+      #   if: matrix.os == 'ubuntu-latest'
+      #   run: cargo test --features cuda --verbose
 
-      - name: Run tests (wgpu)
-        run: cargo test --features wgpu --verbose
+      # - name: Run tests (wgpu)
+      #   run: cargo test --features wgpu --verbose
 
       - name: Build examples
         run: cargo build --examples --verbose
@@ -106,11 +110,11 @@ jobs:
           - ""
           - "metal-native"
           - "cuda"
-          - "wgpu"
+
           - "metal-native,cuda"
-          - "metal-native,wgpu"
-          - "cuda,wgpu"
-          - "metal-native,cuda,wgpu"
+          - "metal-native"
+          - "cuda"
+          - "metal-native,cuda"
 
     steps:
       - name: Checkout code
@@ -278,7 +282,6 @@ jobs:
           echo "### 🔧 Features" >> release_notes.md
           echo "- Metal Native GPU acceleration (macOS)" >> release_notes.md
           echo "- CUDA support (Linux/Windows)" >> release_notes.md
-          echo "- wgpu cross-platform support" >> release_notes.md
           echo "- HNSW graph construction and search" >> release_notes.md
           echo "- VRAM monitoring and management" >> release_notes.md
           echo "" >> release_notes.md

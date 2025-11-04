@@ -74,9 +74,12 @@ pub trait GpuContext {
     /// # Examples
     ///
     /// ```no_run
+    /// # #[cfg(all(target_os = "macos", feature = "metal-native"))]
+    /// # {
     /// use hive_gpu::metal::MetalNativeContext;
     /// use hive_gpu::traits::GpuContext;
     ///
+    /// # fn example() -> Result<(), hive_gpu::error::HiveGpuError> {
     /// let context = MetalNativeContext::new()?;
     /// let info = context.device_info()?;
     ///
@@ -84,7 +87,9 @@ pub trait GpuContext {
     /// println!("Total VRAM: {} MB", info.total_vram_mb());
     /// println!("Available VRAM: {} MB", info.available_vram_mb());
     /// println!("Usage: {:.1}%", info.vram_usage_percent());
-    /// # Ok::<(), hive_gpu::error::HiveGpuError>(())
+    /// # Ok(())
+    /// # }
+    /// # }
     /// ```
     fn device_info(&self) -> Result<GpuDeviceInfo>;
 }

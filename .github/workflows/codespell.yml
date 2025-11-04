@@ -17,6 +17,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v5
+        with:
+          fetch-depth: 0  # Fetch todo histórico para evitar cache de arquivos deletados
 
       - name: Install Codespell
         run: python -m pip install --upgrade 'codespell[toml]'

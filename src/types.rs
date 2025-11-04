@@ -87,6 +87,8 @@ pub struct GpuSearchResult {
 /// # Examples
 ///
 /// ```no_run
+/// # #[cfg(all(target_os = "macos", feature = "metal-native"))]
+/// # {
 /// use hive_gpu::metal::MetalNativeContext;
 /// use hive_gpu::traits::GpuContext;
 ///
@@ -97,6 +99,7 @@ pub struct GpuSearchResult {
 /// println!("Backend: {}", info.backend);
 /// println!("VRAM: {} MB", info.total_vram_bytes / 1024 / 1024);
 /// println!("Usage: {:.1}%", info.vram_usage_percent());
+/// # }
 /// ```
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct GpuDeviceInfo {
