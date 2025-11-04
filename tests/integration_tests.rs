@@ -228,23 +228,23 @@ mod cuda_tests {
         return;
 
         #[allow(unreachable_code)]
-        let context = CudaContext::new().expect("Failed to create CUDA context");
-        let mut storage = context
+        let _context = CudaContext::new().expect("Failed to create CUDA context");
+        let mut _storage = _context
             .create_storage(128, GpuDistanceMetric::Cosine)
             .expect("Failed to create storage");
 
         // Test basic operations (placeholder implementation)
-        let vectors = vec![GpuVector {
+        let _vectors = vec![GpuVector {
             id: "cuda_vec1".to_string(),
             data: vec![1.0; 128],
             metadata: HashMap::new(),
         }];
 
-        let indices = storage
-            .add_vectors(&vectors)
+        let _indices = _storage
+            .add_vectors(&_vectors)
             .expect("Failed to add vectors");
-        assert_eq!(indices.len(), 1);
-        assert_eq!(storage.vector_count(), 1);
+        assert_eq!(_indices.len(), 1);
+        assert_eq!(_storage.vector_count(), 1);
     }
 }
 
