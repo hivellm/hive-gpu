@@ -7,11 +7,13 @@ pub mod buffer_pool;
 pub mod context;
 pub mod helpers;
 pub mod hnsw_graph;
+pub mod ivf;
 pub mod vector_storage;
 pub mod vram_monitor;
 
 pub use buffer_pool::CudaBufferPool;
 pub use context::CudaContext;
 pub use hnsw_graph::CudaHnswGraph;
+pub use ivf::CudaIvfIndex;
 pub use vector_storage::CudaVectorStorage;
 pub use vram_monitor::CudaVramMonitor;
