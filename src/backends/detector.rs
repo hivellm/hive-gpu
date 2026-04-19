@@ -14,6 +14,8 @@ pub enum GpuBackendType {
     Cuda,
     /// ROCm / HIP (AMD)
     Rocm,
+    /// Intel / Vulkan Compute (also covers the universal-Vulkan fallback)
+    Intel,
     /// CPU fallback
     Cpu,
 }
@@ -24,6 +26,7 @@ impl std::fmt::Display for GpuBackendType {
             GpuBackendType::Metal => write!(f, "Metal"),
             GpuBackendType::Cuda => write!(f, "CUDA"),
             GpuBackendType::Rocm => write!(f, "ROCm"),
+            GpuBackendType::Intel => write!(f, "Intel"),
             GpuBackendType::Cpu => write!(f, "CPU"),
         }
     }
@@ -58,6 +61,14 @@ pub fn detect_available_backends() -> Vec<GpuBackendType> {
         }
     }
 
+    // Check Intel / Vulkan availability (Linux + Windows)
+    #[cfg(all(feature = "intel", any(target_os = "linux", target_os = "windows")))]
+    {
+        if is_intel_available() {
+            backends.push(GpuBackendType::Intel);
+        }
+    }
+
     // CPU is always available as fallback
     backends.push(GpuBackendType::Cpu);
 
@@ -68,13 +79,15 @@ pub fn detect_available_backends() -> Vec<GpuBackendType> {
 pub fn select_best_backend() -> Result<GpuBackendType> {
     let available = detect_available_backends();
 
-    // Priority order: Metal > CUDA > ROCm > CPU
+    // Priority order: Metal > CUDA > ROCm > Intel > CPU
     if available.contains(&GpuBackendType::Metal) {
         Ok(GpuBackendType::Metal)
     } else if available.contains(&GpuBackendType::Cuda) {
         Ok(GpuBackendType::Cuda)
     } else if available.contains(&GpuBackendType::Rocm) {
         Ok(GpuBackendType::Rocm)
+    } else if available.contains(&GpuBackendType::Intel) {
+        Ok(GpuBackendType::Intel)
     } else if available.contains(&GpuBackendType::Cpu) {
         Ok(GpuBackendType::Cpu)
     } else {
@@ -116,6 +129,15 @@ fn is_rocm_available() -> bool {
     crate::rocm::context::RocmContext::is_available()
 }
 
+/// Check if a Vulkan-capable device (Intel by default, any device when
+/// `HIVE_GPU_VULKAN_UNIVERSAL=1` is set) is reachable on the current
+/// system. Ash loads the Vulkan loader dynamically — returns `false`
+/// gracefully when no loader is present.
+#[cfg(all(feature = "intel", any(target_os = "linux", target_os = "windows")))]
+fn is_intel_available() -> bool {
+    crate::intel::context::IntelContext::is_available()
+}
+
 /// Get backend-specific device information
 pub fn get_backend_info(backend: GpuBackendType) -> Result<String> {
     match backend {
@@ -155,6 +177,16 @@ pub fn get_backend_info(backend: GpuBackendType) -> Result<String> {
                 Err(HiveGpuError::NoDeviceAvailable)
             }
         }
+        GpuBackendType::Intel => {
+            #[cfg(all(feature = "intel", any(target_os = "linux", target_os = "windows")))]
+            {
+                Ok("Intel (Vulkan) device available".to_string())
+            }
+            #[cfg(not(all(feature = "intel", any(target_os = "linux", target_os = "windows"))))]
+            {
+                Err(HiveGpuError::NoDeviceAvailable)
+            }
+        }
         GpuBackendType::Cpu => Ok("CPU fallback".to_string()),
     }
 }
@@ -183,6 +215,14 @@ pub fn get_backend_performance_info(backend: GpuBackendType) -> BackendPerforman
             memory_bandwidth_gbps: 960.0, // RX 7900 XTX example
             compute_units: 96,            // RX 7900 XTX example
             memory_size_gb: 24,
+            supports_hnsw: false,
+            supports_batch: true,
+        },
+        GpuBackendType::Intel => BackendPerformanceInfo {
+            name: "Intel".to_string(),
+            memory_bandwidth_gbps: 560.0, // Arc B580 (Battlemage) approx
+            compute_units: 20,            // Arc B580 Xe-cores
+            memory_size_gb: 12,
             supports_hnsw: false,
             supports_batch: true,
         },
