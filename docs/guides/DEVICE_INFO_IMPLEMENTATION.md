@@ -582,5 +582,5 @@ The Device Info API provides:
 For more examples, see:
 - `tests/device_info_tests.rs` - Complete test suite
 - `examples/metal_basic.rs` - Basic usage
-- `docs/API_REFERENCE.md` - Full API documentation
+- `docs/reference/API_REFERENCE.md` - Full API documentation
 

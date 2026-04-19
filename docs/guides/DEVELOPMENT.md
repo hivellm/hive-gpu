@@ -278,11 +278,17 @@ hive-gpu/
 │   └── rocm_basic.rs
 │
 ├── docs/                 # Documentation
-│   ├── ARCHITECTURE.md
-│   ├── DEVELOPMENT.md
-│   ├── ROADMAP.md
+│   ├── README.md
 │   ├── DAG.md
-│   └── specs/
+│   ├── ROADMAP.md
+│   ├── architecture/
+│   │   └── ARCHITECTURE.md
+│   ├── reference/
+│   │   └── API_REFERENCE.md
+│   ├── guides/
+│   │   └── DEVELOPMENT.md
+│   └── benchmarks/
+│       └── PERFORMANCE.md
 │
 ├── openspec/             # OpenSpec specifications
 │   ├── project.md

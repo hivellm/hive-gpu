@@ -7,15 +7,15 @@ Welcome to the hive-gpu documentation! This directory contains comprehensive gui
 ### Getting Started
 
 - **[Main README](../README.md)** - Project overview, quick start, and installation
-- **[Integration Guide](INTEGRATION_GUIDE.md)** - Step-by-step integration examples
+- **[Integration Guide](guides/INTEGRATION_GUIDE.md)** - Step-by-step integration examples
 - **[Examples](../examples/)** - Working code examples
 
 ### Core Documentation
 
-- **[Architecture](ARCHITECTURE.md)** - System design, components, and data flow
-- **[Development Guide](DEVELOPMENT.md)** - Setup, workflow, testing, and contributing
-- **[API Reference](API_REFERENCE.md)** - Complete API documentation
-- **[Performance Guide](PERFORMANCE.md)** - Optimization tips and benchmarks
+- **[Architecture](architecture/ARCHITECTURE.md)** - System design, components, and data flow
+- **[Development Guide](guides/DEVELOPMENT.md)** - Setup, workflow, testing, and contributing
+- **[API Reference](reference/API_REFERENCE.md)** - Complete API documentation
+- **[Performance Guide](benchmarks/PERFORMANCE.md)** - Optimization tips and benchmarks
 
 ### Project Planning
 
@@ -30,19 +30,19 @@ Welcome to the hive-gpu documentation! This directory contains comprehensive gui
 → Read [Main README](../README.md) → Run [examples](../examples/metal_basic.rs)
 
 #### **Integrate hive-gpu**
-→ Read [Integration Guide](INTEGRATION_GUIDE.md) → Choose your use case
+→ Read [Integration Guide](guides/INTEGRATION_GUIDE.md) → Choose your use case
 
 #### **Optimize Performance**
-→ Read [Performance Guide](PERFORMANCE.md) → Apply optimization techniques
+→ Read [Performance Guide](benchmarks/PERFORMANCE.md) → Apply optimization techniques
 
 #### **Understand the Codebase**
-→ Read [Architecture](ARCHITECTURE.md) → Check [DAG](DAG.md)
+→ Read [Architecture](architecture/ARCHITECTURE.md) → Check [DAG](DAG.md)
 
 #### **Contribute Code**
-→ Read [Development Guide](DEVELOPMENT.md) → Follow quality gates
+→ Read [Development Guide](guides/DEVELOPMENT.md) → Follow quality gates
 
 #### **Check API Details**
-→ Read [API Reference](API_REFERENCE.md) → Find the method you need
+→ Read [API Reference](reference/API_REFERENCE.md) → Find the method you need
 
 #### **Plan Features**
 → Check [Roadmap](ROADMAP.md) → See what's coming
@@ -51,14 +51,27 @@ Welcome to the hive-gpu documentation! This directory contains comprehensive gui
 
 ```
 docs/
-├── README.md                 # This file (documentation index)
-├── ARCHITECTURE.md           # System architecture and design
-├── DEVELOPMENT.md            # Development workflow and setup
-├── ROADMAP.md                # Project roadmap and milestones
-├── DAG.md                    # Component dependencies (DAG)
-├── API_REFERENCE.md          # Complete API documentation
-├── PERFORMANCE.md            # Performance guide and benchmarks
-└── INTEGRATION_GUIDE.md      # Integration examples and patterns
+├── README.md                        # This file (documentation index)
+├── DAG.md                           # Component dependencies (DAG)
+├── ROADMAP.md                       # Project roadmap and milestones
+├── architecture/
+│   ├── ARCHITECTURE.md              # System architecture and design
+│   └── HIVE_GPU_IMPLEMENTATION_RECOMMENDATIONS.md
+├── reference/
+│   └── API_REFERENCE.md             # Complete API documentation
+├── guides/
+│   ├── INTEGRATION_GUIDE.md         # Integration examples and patterns
+│   ├── DEVELOPMENT.md               # Development workflow and setup
+│   ├── EXAMPLES.md                  # Annotated examples
+│   ├── CI_FIXES.md                  # CI fixes history
+│   ├── DEVICE_INFO_IMPLEMENTATION.md
+│   ├── MIGRATION_METAL_OBJC2.md
+│   ├── MIGRATION_OBJC2_SUMMARY.md
+│   └── ROADMAP_CONFIG.md
+├── benchmarks/
+│   ├── PERFORMANCE.md               # Performance guide and tuning
+│   └── PERFORMANCE_RESULTS.md       # Benchmark results
+└── analysis/                        # Research and analysis notes
 ```
 
 ## 🚀 Quick Reference
@@ -134,33 +147,33 @@ for query in queries {
 
 | Topic | Document |
 |-------|----------|
-| Installation & Setup | [Main README](../README.md), [Development Guide](DEVELOPMENT.md) |
+| Installation & Setup | [Main README](../README.md), [Development Guide](guides/DEVELOPMENT.md) |
 | Basic Usage | [Main README](../README.md), [Examples](../examples/) |
-| Integration Patterns | [Integration Guide](INTEGRATION_GUIDE.md) |
-| API Reference | [API Reference](API_REFERENCE.md) |
-| Performance Tuning | [Performance Guide](PERFORMANCE.md) |
-| Architecture Understanding | [Architecture](ARCHITECTURE.md), [DAG](DAG.md) |
-| Contributing | [Development Guide](DEVELOPMENT.md) |
+| Integration Patterns | [Integration Guide](guides/INTEGRATION_GUIDE.md) |
+| API Reference | [API Reference](reference/API_REFERENCE.md) |
+| Performance Tuning | [Performance Guide](benchmarks/PERFORMANCE.md) |
+| Architecture Understanding | [Architecture](architecture/ARCHITECTURE.md), [DAG](DAG.md) |
+| Contributing | [Development Guide](guides/DEVELOPMENT.md) |
 | Future Plans | [Roadmap](ROADMAP.md) |
 
 ### By User Type
 
 #### **Application Developer**
 1. [Main README](../README.md) - Quick start
-2. [Integration Guide](INTEGRATION_GUIDE.md) - Integration patterns
-3. [API Reference](API_REFERENCE.md) - API details
-4. [Performance Guide](PERFORMANCE.md) - Optimization
+2. [Integration Guide](guides/INTEGRATION_GUIDE.md) - Integration patterns
+3. [API Reference](reference/API_REFERENCE.md) - API details
+4. [Performance Guide](benchmarks/PERFORMANCE.md) - Optimization
 
 #### **Library Contributor**
-1. [Development Guide](DEVELOPMENT.md) - Setup and workflow
-2. [Architecture](ARCHITECTURE.md) - System design
+1. [Development Guide](guides/DEVELOPMENT.md) - Setup and workflow
+2. [Architecture](architecture/ARCHITECTURE.md) - System design
 3. [DAG](DAG.md) - Dependencies
 4. [Roadmap](ROADMAP.md) - Planned features
 
 #### **Performance Engineer**
-1. [Performance Guide](PERFORMANCE.md) - Benchmarks and tuning
-2. [Architecture](ARCHITECTURE.md) - Design decisions
-3. [API Reference](API_REFERENCE.md) - Configuration options
+1. [Performance Guide](benchmarks/PERFORMANCE.md) - Benchmarks and tuning
+2. [Architecture](architecture/ARCHITECTURE.md) - Design decisions
+3. [API Reference](reference/API_REFERENCE.md) - Configuration options
 
 ## 🎓 Learning Path
 
@@ -168,34 +181,19 @@ for query in queries {
 
 1. **[Main README](../README.md)** - Understand what hive-gpu is
 2. **[Examples](../examples/metal_basic.rs)** - Run your first example
-3. **[API Reference](API_REFERENCE.md)** - Learn core types and traits
+3. **[API Reference](reference/API_REFERENCE.md)** - Learn core types and traits
 
 ### Intermediate
 
-1. **[Integration Guide](INTEGRATION_GUIDE.md)** - Build real applications
-2. **[Performance Guide](PERFORMANCE.md)** - Optimize your code
-3. **[Architecture](ARCHITECTURE.md)** - Understand internal design
+1. **[Integration Guide](guides/INTEGRATION_GUIDE.md)** - Build real applications
+2. **[Performance Guide](benchmarks/PERFORMANCE.md)** - Optimize your code
+3. **[Architecture](architecture/ARCHITECTURE.md)** - Understand internal design
 
 ### Advanced
 
-1. **[Development Guide](DEVELOPMENT.md)** - Contribute to the project
+1. **[Development Guide](guides/DEVELOPMENT.md)** - Contribute to the project
 2. **[DAG](DAG.md)** - Understand dependencies
 3. **[Roadmap](ROADMAP.md)** - Shape the future
-
-## 📊 Documentation Coverage
-
-| Document | Lines | Status | Last Updated |
-|----------|-------|--------|--------------|
-| README.md | ~550 | ✅ Complete | 2025-01-03 |
-| ARCHITECTURE.md | ~700 | ✅ Complete | 2025-01-03 |
-| DEVELOPMENT.md | ~800 | ✅ Complete | 2025-01-03 |
-| ROADMAP.md | ~500 | ✅ Complete | 2025-01-03 |
-| DAG.md | ~600 | ✅ Complete | 2025-01-03 |
-| API_REFERENCE.md | ~900 | ✅ Complete | 2025-01-03 |
-| PERFORMANCE.md | ~700 | ✅ Complete | 2025-01-03 |
-| INTEGRATION_GUIDE.md | ~800 | ✅ Complete | 2025-01-03 |
-
-**Total Documentation:** ~5,550 lines
 
 ## 🤝 Contributing to Documentation
 
@@ -261,6 +259,3 @@ All code examples must:
 ---
 
 **Happy Coding! 🚀**
-
-*Last Updated: 2025-01-03*
-
