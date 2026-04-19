@@ -294,6 +294,7 @@ dependencies = [
  "criterion",
  "cudarc",
  "half 1.8.3",
+ "libloading",
  "log",
  "objc2",
  "objc2-foundation",
