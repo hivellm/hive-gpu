@@ -9,8 +9,8 @@ use crate::types::{GpuCapabilities, GpuDeviceInfo, GpuMemoryStats};
 use objc2::rc::Retained;
 use objc2::runtime::ProtocolObject;
 use objc2_metal::{
-    MTLCommandQueue, MTLCompileOptions, MTLCreateSystemDefaultDevice, MTLDevice, MTLGPUFamily,
-    MTLLibrary, MTLSize,
+    MTLCommandQueue, MTLCompileOptions, MTLComputePipelineState, MTLCreateSystemDefaultDevice,
+    MTLDevice, MTLGPUFamily, MTLLibrary, MTLSize,
 };
 use std::process::Command;
 use std::sync::Arc;
@@ -85,6 +85,30 @@ impl MetalNativeContext {
     /// Get Metal library
     pub fn library(&self) -> &ProtocolObject<dyn MTLLibrary> {
         &self.library
+    }
+
+    /// Build a compute pipeline state for a named kernel function in the
+    /// Metal library. Callers typically cache the returned pipeline for
+    /// the lifetime of their owner struct.
+    pub fn compute_pipeline(
+        &self,
+        function_name: &str,
+    ) -> Result<Retained<ProtocolObject<dyn MTLComputePipelineState>>> {
+        let ns_name = objc2_foundation::NSString::from_str(function_name);
+        let function = self.library.newFunctionWithName(&ns_name).ok_or_else(|| {
+            HiveGpuError::ShaderCompilationFailed(format!(
+                "Metal function '{function_name}' not found in compiled library",
+            ))
+        })?;
+        let pipeline = self
+            .device
+            .newComputePipelineStateWithFunction_error(&function)
+            .map_err(|e| {
+                HiveGpuError::ShaderCompilationFailed(format!(
+                    "Failed to build pipeline for '{function_name}': {e:?}",
+                ))
+            })?;
+        Ok(pipeline)
     }
 
     /// Load Metal library with HNSW shaders

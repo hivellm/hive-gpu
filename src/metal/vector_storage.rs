@@ -11,7 +11,8 @@ use objc2::rc::Retained;
 use objc2::runtime::ProtocolObject;
 use objc2_metal::{
     MTLBlitCommandEncoder, MTLBuffer, MTLCommandBuffer, MTLCommandEncoder, MTLCommandQueue,
-    MTLDevice, MTLResourceOptions, MTLStorageMode,
+    MTLComputeCommandEncoder, MTLComputePipelineState, MTLDevice, MTLResourceOptions, MTLSize,
+    MTLStorageMode,
 };
 use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
@@ -31,17 +32,21 @@ pub struct VectorMetadata {
 #[derive(Debug)]
 pub struct MetalNativeVectorStorage {
     context: Arc<MetalNativeContext>,
-    pub vectors_buffer: Retained<ProtocolObject<dyn MTLBuffer>>, // Made public for GPU search access
+    pub vectors_buffer: Retained<ProtocolObject<dyn MTLBuffer>>, // public for IVF cluster views
     metadata_buffer: Retained<ProtocolObject<dyn MTLBuffer>>,
     vector_count: usize,
     buffer_capacity: usize, // Total capacity in vectors
     dimension: usize,
     metric: GpuDistanceMetric,
     vector_id_map: HashMap<String, usize>,
-    index_to_id: Vec<String>, // Maps index to original ID
-    vector_metadata: HashMap<String, VectorMetadata>, // Maps ID to metadata
-    pub removed_indices: HashSet<usize>, // Tracks removed vector indices - made public for GPU search
-    vector_payloads: HashMap<String, Option<std::collections::HashMap<String, String>>>, // Store payloads in CPU memory
+    index_to_id: Vec<String>,
+    vector_metadata: HashMap<String, VectorMetadata>,
+    pub removed_indices: HashSet<usize>,
+    vector_payloads: HashMap<String, Option<std::collections::HashMap<String, String>>>,
+    /// Squared L2 norms per stored vector, kept in host memory. Cached at
+    /// `add_vector` time so `search` can derive Cosine/Euclidean scores
+    /// without a second kernel pass.
+    norms_sq: Vec<f32>,
 }
 
 #[cfg(all(target_os = "macos", feature = "metal-native"))]
@@ -98,6 +103,7 @@ impl MetalNativeVectorStorage {
             vector_metadata: HashMap::new(),
             removed_indices: HashSet::new(),
             vector_payloads: HashMap::new(),
+            norms_sq: Vec::new(),
         })
     }
 
@@ -210,7 +216,9 @@ impl MetalNativeVectorStorage {
         self.index_to_id.push(vector.id.clone());
         self.vector_metadata.insert(vector.id.clone(), metadata);
         self.vector_payloads
-            .insert(vector.id.clone(), Some(vector.metadata.clone())); // Store metadata as payload
+            .insert(vector.id.clone(), Some(vector.metadata.clone()));
+        self.norms_sq
+            .push(vector.data.iter().map(|&x| x * x).sum::<f32>());
         self.vector_count += 1;
 
         debug!(
@@ -361,6 +369,7 @@ impl MetalNativeVectorStorage {
         self.vector_metadata.clear();
         self.removed_indices.clear();
         self.vector_payloads.clear();
+        self.norms_sq.clear();
 
         debug!("✅ All vectors cleared from Metal storage");
         Ok(())
@@ -378,6 +387,140 @@ impl MetalNativeVectorStorage {
                 / 1024,
         }
     }
+
+    /// Run the `sgemv_dot` Metal kernel against the full vector buffer.
+    /// Returns a host vector of `vector_count` dot products.
+    ///
+    /// This is the brute-force primitive used by [`GpuVectorStorage::search`]
+    /// and — through `pub(crate)` exposure — by the Metal IVF index's
+    /// coarse and refined search paths.
+    pub(crate) fn gpu_dot_scores(&self, query: &[f32]) -> Result<Vec<f32>> {
+        run_sgemv_dot(
+            &self.context,
+            &self.vectors_buffer,
+            /* matrix_element_offset = */ 0,
+            self.vector_count,
+            self.dimension,
+            query,
+        )
+    }
+}
+
+/// Dispatch `sgemv_dot` for a `(n_vectors, dimension)` row-major matrix
+/// stored inside `matrix_buffer` starting at `matrix_element_offset` f32s
+/// past the buffer's base address. Returns the `n_vectors`-length score
+/// vector read back to host memory.
+///
+/// Shared between `MetalNativeVectorStorage::gpu_dot_scores` and the IVF
+/// index's per-cluster refined search, where the cluster subrange starts
+/// at a non-zero element offset inside a larger buffer.
+#[cfg(all(target_os = "macos", feature = "metal-native"))]
+pub(crate) fn run_sgemv_dot(
+    context: &MetalNativeContext,
+    matrix_buffer: &ProtocolObject<dyn MTLBuffer>,
+    matrix_element_offset: usize,
+    n_vectors: usize,
+    dimension: usize,
+    query: &[f32],
+) -> Result<Vec<f32>> {
+    if n_vectors == 0 {
+        return Ok(Vec::new());
+    }
+
+    let device = context.device();
+    let queue = context.command_queue();
+    let pipeline = context.compute_pipeline("sgemv_dot")?;
+
+    // Query buffer (host-visible so we can fill it without a blit).
+    let query_bytes = dimension * std::mem::size_of::<f32>();
+    let query_buffer = unsafe {
+        device
+            .newBufferWithBytes_length_options(
+                std::ptr::NonNull::new_unchecked(query.as_ptr() as *mut std::ffi::c_void),
+                query_bytes,
+                MTLResourceOptions::StorageModeShared,
+            )
+            .ok_or_else(|| HiveGpuError::Other("Failed to create query buffer".to_string()))?
+    };
+
+    // Output scores buffer (shared so we can read back directly).
+    let scores_bytes = n_vectors * std::mem::size_of::<f32>();
+    let scores_buffer = device
+        .newBufferWithLength_options(scores_bytes, MTLResourceOptions::StorageModeShared)
+        .ok_or_else(|| HiveGpuError::Other("Failed to create scores buffer".to_string()))?;
+
+    let command_buffer = queue
+        .commandBuffer()
+        .ok_or_else(|| HiveGpuError::Other("Failed to create command buffer".to_string()))?;
+    let encoder = command_buffer
+        .computeCommandEncoder()
+        .ok_or_else(|| HiveGpuError::Other("Failed to create compute encoder".to_string()))?;
+
+    encoder.setComputePipelineState(&pipeline);
+
+    // buffer(0): matrix, with optional element offset converted to bytes.
+    let matrix_byte_offset = matrix_element_offset * std::mem::size_of::<f32>();
+    unsafe {
+        encoder.setBuffer_offset_atIndex(Some(matrix_buffer), matrix_byte_offset, 0);
+    }
+    // buffer(1): query.
+    unsafe {
+        encoder.setBuffer_offset_atIndex(Some(&query_buffer), 0, 1);
+    }
+    // buffer(2): scores.
+    unsafe {
+        encoder.setBuffer_offset_atIndex(Some(&scores_buffer), 0, 2);
+    }
+    // buffer(3): dimension as u32 inline constant.
+    let dim_u32 = dimension as u32;
+    let n_u32 = n_vectors as u32;
+    unsafe {
+        encoder.setBytes_length_atIndex(
+            std::ptr::NonNull::new_unchecked(&dim_u32 as *const u32 as *mut std::ffi::c_void),
+            std::mem::size_of::<u32>(),
+            3,
+        );
+        encoder.setBytes_length_atIndex(
+            std::ptr::NonNull::new_unchecked(&n_u32 as *const u32 as *mut std::ffi::c_void),
+            std::mem::size_of::<u32>(),
+            4,
+        );
+    }
+
+    // Dispatch: one thread per output row. Threadgroup size capped by
+    // the pipeline's max; grid size rounded up.
+    let max_tgs = pipeline.maxTotalThreadsPerThreadgroup().min(256);
+    let tgs = MTLSize {
+        width: max_tgs,
+        height: 1,
+        depth: 1,
+    };
+    let grid = MTLSize {
+        width: n_vectors,
+        height: 1,
+        depth: 1,
+    };
+    // `dispatchThreads_threadsPerThreadgroup` is available on Apple GPUs
+    // (requires macOS 10.15+). Intel Macs on macOS 10.13/14 would need
+    // the older `dispatchThreadgroups_threadsPerThreadgroup` API; we target
+    // Apple Silicon only.
+    unsafe {
+        encoder.dispatchThreads_threadsPerThreadgroup(grid, tgs);
+    }
+    encoder.endEncoding();
+
+    command_buffer.commit();
+    command_buffer.waitUntilCompleted();
+
+    // Read scores back out of the shared-mode buffer.
+    let mut out = vec![0f32; n_vectors];
+    // SAFETY: scores_buffer has `scores_bytes` bytes of host-visible
+    // memory; we copy exactly that many bytes into a matching f32 slice.
+    unsafe {
+        let src = scores_buffer.contents() as *const f32;
+        std::ptr::copy_nonoverlapping(src, out.as_mut_ptr(), n_vectors);
+    }
+    Ok(out)
 }
 
 /// Storage statistics
@@ -401,28 +544,75 @@ impl GpuVectorStorage for MetalNativeVectorStorage {
     }
 
     fn search(&self, query: &[f32], limit: usize) -> Result<Vec<GpuSearchResult>> {
-        // Basic implementation for validation
-        // TODO: Implement GPU-accelerated search using Metal shaders
-
-        if self.vector_count() == 0 {
-            return Ok(vec![]);
+        if limit == 0 || self.vector_count == 0 {
+            return Ok(Vec::new());
         }
-
-        let mut results = Vec::new();
-
-        // For now, return mock results to validate the integration
-        // In a real implementation, you'd read from Metal buffers and use GPU shaders
-        for i in 0..std::cmp::min(limit, self.vector_count()) {
-            if let Some(id) = self.index_to_id.get(i) {
-                results.push(GpuSearchResult {
-                    id: id.clone(),
-                    score: 1.0 - (i as f32 * 0.1), // Mock similarity scores
-                    index: i,
-                });
+        if query.len() != self.dimension {
+            return Err(HiveGpuError::DimensionMismatch {
+                expected: self.dimension,
+                actual: query.len(),
+            });
+        }
+        for (i, &v) in query.iter().enumerate() {
+            if !v.is_finite() {
+                return Err(HiveGpuError::InvalidConfiguration(format!(
+                    "non-finite query component at index {i}"
+                )));
             }
         }
 
-        Ok(results)
+        // Compute raw dot products against every stored vector on the GPU.
+        let raw_scores = self.gpu_dot_scores(query)?;
+
+        // Apply the caller's metric on the host using cached squared norms.
+        let query_norm_sq: f32 = query.iter().map(|&x| x * x).sum();
+        let mut scored: Vec<(usize, f32)> = raw_scores
+            .into_iter()
+            .enumerate()
+            .map(|(i, dot)| {
+                let score = match self.metric {
+                    GpuDistanceMetric::DotProduct => dot,
+                    GpuDistanceMetric::Cosine => {
+                        let v_norm = self.norms_sq[i].sqrt();
+                        let q_norm = query_norm_sq.sqrt();
+                        let denom = v_norm * q_norm;
+                        if denom > 0.0 { dot / denom } else { 0.0 }
+                    }
+                    GpuDistanceMetric::Euclidean => {
+                        (self.norms_sq[i] - 2.0 * dot + query_norm_sq).max(0.0)
+                    }
+                };
+                (i, score)
+            })
+            .collect();
+
+        // Drop removed indices.
+        scored.retain(|(idx, _)| !self.removed_indices.contains(idx));
+
+        // Top-K on the CPU.
+        match self.metric {
+            GpuDistanceMetric::Euclidean => {
+                scored.sort_by(|a, b| a.1.partial_cmp(&b.1).unwrap_or(std::cmp::Ordering::Equal))
+            }
+            _ => scored.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap_or(std::cmp::Ordering::Equal)),
+        }
+        scored.truncate(limit);
+
+        Ok(scored
+            .into_iter()
+            .map(|(index, score)| {
+                let id = self.index_to_id[index].clone();
+                let similarity = match self.metric {
+                    GpuDistanceMetric::Euclidean => 1.0 / (1.0 + score.sqrt()),
+                    _ => score,
+                };
+                GpuSearchResult {
+                    id,
+                    score: similarity,
+                    index,
+                }
+            })
+            .collect())
     }
 
     fn remove_vectors(&mut self, ids: &[String]) -> Result<()> {
