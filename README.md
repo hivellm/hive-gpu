@@ -1,550 +1,242 @@
-# 🚀 Hive-GPU v0.1.8
+# hive-gpu 0.2.0
 
-**High-performance GPU acceleration library for vector operations**
+**GPU acceleration for vector similarity search, written in Rust.**
 
 [![Crates.io](https://img.shields.io/crates/v/hive-gpu.svg)](https://crates.io/crates/hive-gpu)
 [![Documentation](https://docs.rs/hive-gpu/badge.svg)](https://docs.rs/hive-gpu)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Build Status](https://github.com/hivellm/hive-gpu/workflows/CI/badge.svg)](https://github.com/hivellm/hive-gpu/actions)
 
-## 📦 Installation
+Two production backends as of 0.2.0:
 
-Add to your `Cargo.toml`:
+- **Metal** — Apple Silicon (M-series), built on `objc2-metal`.
+- **CUDA** — NVIDIA (Volta / sm_70+) on Linux and Windows, built on `cudarc`
+  driver API + cuBLAS SGEMV. Validated on RTX 4090.
 
-```toml
-[dependencies]
-hive-gpu = "0.1.8"
-
-# Optional: Enable specific GPU backends
-hive-gpu = { version = "0.1.8", features = ["metal-native"] }  # macOS
-hive-gpu = { version = "0.1.8", features = ["cuda"] }          # Linux/Windows
-```
-
-### Metal Backend (macOS)
-
-The Metal backend uses modern, type-safe Rust bindings:
-- **objc2-metal** - Metal framework bindings
-- **objc2-foundation** - Foundation framework support
-- **objc2** - Modern Objective-C interop
-
-**Note**: As of v0.1.8, we migrated from the discontinued `metal-rs` to the actively maintained `objc2-metal` ecosystem for better security, maintenance, and type safety. See [Migration Guide](docs/guides/MIGRATION_METAL_OBJC2.md) for details.
-
-## 🎯 Features
-
-- **🔥 GPU Acceleration**: Metal Native (macOS) and CUDA (Linux/Windows) support
-- **⚡ High Performance**: VRAM-only storage for maximum speed
-- **🧠 HNSW Graphs**: GPU-accelerated approximate nearest neighbor search
-- **📊 Vector Operations**: Cosine similarity, Euclidean distance, dot product
-- **🔄 Batch Processing**: Efficient batch operations
-- **🛡️ Type Safety**: Rust's type system for GPU operations
-- **📱 Cross-Platform**: macOS, Linux, Windows support
-- **🔐 Modern Bindings**: Uses `objc2-metal` for type-safe Metal API access
-
-## 🚀 Quick Start
-
-### Basic Usage
-
-```rust
-use hive_gpu::metal::context::MetalNativeContext;
-use hive_gpu::traits::{GpuContext, GpuVectorStorage};
-use hive_gpu::types::{GpuVector, GpuDistanceMetric};
-
-#[tokio::main]
-async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    // Create GPU context
-    let context = MetalNativeContext::new()?;
-    
-    // Create vector storage
-    let mut storage = context.create_storage(128, GpuDistanceMetric::Cosine)?;
-    
-    // Prepare vectors
-    let vectors = vec![
-        GpuVector {
-            id: "vector_1".to_string(),
-            data: vec![1.0, 2.0, 3.0, 4.0], // 4D vector
-            metadata: std::collections::HashMap::new(),
-        },
-        GpuVector {
-            id: "vector_2".to_string(),
-            data: vec![2.0, 3.0, 4.0, 5.0],
-            metadata: std::collections::HashMap::new(),
-        },
-    ];
-    
-    // Add vectors to GPU
-    storage.add_vectors(&vectors)?;
-    
-    // Search for similar vectors
-    let query = vec![1.5, 2.5, 3.5, 4.5];
-    let results = storage.search(&query, 5)?;
-    
-    println!("Found {} similar vectors:", results.len());
-    for result in results {
-        println!("ID: {}, Score: {:.4}", result.id, result.score);
-    }
-    
-    Ok(())
-}
-```
-
-### Advanced Usage with HNSW
-
-```rust
-use hive_gpu::metal::context::MetalNativeContext;
-use hive_gpu::traits::{GpuContext, GpuVectorStorage};
-use hive_gpu::types::{GpuVector, GpuDistanceMetric, HnswConfig};
-
-#[tokio::main]
-async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    // Create GPU context
-    let context = MetalNativeContext::new()?;
-    
-    // Configure HNSW parameters
-    let hnsw_config = HnswConfig {
-        m: 16,              // Number of bi-directional links
-        ef_construction: 200, // Size of dynamic candidate list
-        ef_search: 50,      // Size of dynamic candidate list for search
-        seed: 42,           // Random seed
-    };
-    
-    // Create storage with HNSW configuration
-    let mut storage = context.create_storage_with_config(
-        512, 
-        GpuDistanceMetric::Cosine, 
-        hnsw_config
-    )?;
-    
-    // Generate random vectors
-    let mut vectors = Vec::new();
-    for i in 0..1000 {
-        let data = (0..512).map(|_| rand::random::<f32>()).collect();
-        vectors.push(GpuVector {
-            id: format!("vector_{}", i),
-            data,
-            metadata: std::collections::HashMap::new(),
-        });
-    }
-    
-    // Add vectors in batches
-    storage.add_vectors(&vectors)?;
-    
-    // Search with HNSW acceleration
-    let query = (0..512).map(|_| rand::random::<f32>()).collect::<Vec<f32>>();
-    let results = storage.search(&query, 10)?;
-    
-    println!("HNSW search results:");
-    for (i, result) in results.iter().enumerate() {
-        println!("{}. ID: {}, Score: {:.6}", i + 1, result.id, result.score);
-    }
-    
-    Ok(())
-}
-```
-
-## 🔧 GPU Backends
-
-### Metal Native (macOS)
-
-```rust
-use hive_gpu::metal::context::MetalNativeContext;
-use hive_gpu::traits::{GpuContext, GpuVectorStorage};
-
-// Metal Native provides the highest performance on macOS
-let context = MetalNativeContext::new()?;
-let storage = context.create_storage(128, GpuDistanceMetric::Cosine)?;
-```
-
-### CUDA (Linux/Windows)
-
-```rust
-use hive_gpu::cuda::context::CudaContext;
-use hive_gpu::traits::{GpuContext, GpuVectorStorage};
-
-// CUDA provides excellent performance on NVIDIA GPUs
-let context = CudaContext::new()?;
-let storage = context.create_storage(128, GpuDistanceMetric::Cosine)?;
-```
-
-**Note**: CUDA backend is currently in development. Use Metal Native on macOS for production workloads.
-
-## 🏗️ Integration with Vectorizer
-
-### Using with Hive-Vectorizer
-
-```toml
-# In your Cargo.toml
-[dependencies]
-vectorizer = { git = "https://github.com/hivellm/vectorizer.git" }
-hive-gpu = "0.1.7"
-```
-
-```rust
-use vectorizer::VectorStore;
-use hive_gpu::metal::context::MetalNativeContext;
-use hive_gpu::traits::{GpuContext, GpuVectorStorage};
-
-#[tokio::main]
-async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    // Create vectorizer store
-    let mut store = VectorStore::new();
-    
-    // Create collection with GPU acceleration
-    let config = vectorizer::models::CollectionConfig {
-        dimension: 512,
-        metric: vectorizer::models::DistanceMetric::Cosine,
-        hnsw_config: vectorizer::models::HnswConfig {
-            m: 16,
-            ef_construction: 200,
-            ef_search: 50,
-            seed: 42,
-        },
-    };
-    
-    store.create_collection("my_collection", config)?;
-    
-    // Add vectors
-    let vectors = vec![
-        vectorizer::models::Vector {
-            id: "doc_1".to_string(),
-            data: vec![1.0; 512],
-            payload: None,
-        },
-        // ... more vectors
-    ];
-    
-    store.add_vectors("my_collection", vectors)?;
-    
-    // Search
-    let query = vec![0.5; 512];
-    let results = store.search("my_collection", &query, 10)?;
-    
-    println!("Found {} results", results.len());
-    
-    Ok(())
-}
-```
-
-### Custom GPU Integration
-
-```rust
-use hive_gpu::metal::context::MetalNativeContext;
-use hive_gpu::traits::{GpuContext, GpuVectorStorage};
-use hive_gpu::types::{GpuVector, GpuDistanceMetric};
-
-struct MyVectorStore {
-    gpu_storage: Box<dyn GpuVectorStorage>,
-}
-
-impl MyVectorStore {
-    async fn new(dimension: usize) -> Result<Self, Box<dyn std::error::Error>> {
-        let context = MetalNativeContext::new()?;
-        let storage = context.create_storage(dimension, GpuDistanceMetric::Cosine)?;
-        
-        Ok(Self {
-            gpu_storage: storage,
-        })
-    }
-    
-    async fn add_vector(&mut self, id: String, data: Vec<f32>) -> Result<(), Box<dyn std::error::Error>> {
-        let vector = GpuVector {
-            id,
-            data,
-            metadata: std::collections::HashMap::new(),
-        };
-        
-        self.gpu_storage.add_vectors(&[vector])?;
-        Ok(())
-    }
-    
-    async fn search(&self, query: &[f32], limit: usize) -> Result<Vec<(String, f32)>, Box<dyn std::error::Error>> {
-        let results = self.gpu_storage.search(query, limit)?;
-        Ok(results.into_iter().map(|r| (r.id, r.score)).collect())
-    }
-}
-```
-
-## 📊 Performance Benchmarks
-
-### Throughput Comparison
-
-| Operation | CPU | GPU (Metal) | Speedup |
-|-----------|-----|-------------|---------|
-| Vector Addition | 1,000 vec/s | 4,768 vec/s | **4.8x** |
-| Similarity Search | 1ms | 0.668ms | **1.5x** |
-| HNSW Construction | 100ms | 0ms | **∞** |
-| Batch Search | 10ms | 0.000ms | **∞** |
-
-### Memory Usage
-
-- **VRAM Only**: All vector data stored in GPU memory
-- **Zero CPU-GPU Transfer**: No overhead during search
-- **Efficient Buffers**: Automatic memory management
-- **Scalable**: Supports millions of vectors
-
-## 🛠️ Configuration
-
-### Cargo Features
-
-```toml
-[dependencies]
-hive-gpu = { version = "0.1.7", features = ["metal-native"] }  # macOS only
-hive-gpu = { version = "0.1.7", features = ["cuda"] }          # Linux/Windows (in development)
-hive-gpu = { version = "0.1.7", features = ["metal-native", "cuda"] }  # Both backends
-```
-
-### Environment Variables
-
-```bash
-# Enable debug logging
-export RUST_LOG=debug
-
-# Set GPU memory limit (if supported)
-export HIVE_GPU_MEMORY_LIMIT=4GB
-
-# Enable performance monitoring
-export HIVE_GPU_PROFILE=true
-```
-
-## 🔍 Examples
-
-### Complete Example: Document Search
-
-```rust
-use hive_gpu::metal::context::MetalNativeContext;
-use hive_gpu::traits::{GpuContext, GpuVectorStorage};
-use hive_gpu::types::{GpuVector, GpuDistanceMetric};
-
-#[tokio::main]
-async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    // Initialize GPU context
-    let context = MetalNativeContext::new()?;
-    let mut storage = context.create_storage(384, GpuDistanceMetric::Cosine)?;
-    
-    // Simulate document embeddings (384-dimensional)
-    let documents = vec![
-        ("doc_1", "Machine learning and artificial intelligence"),
-        ("doc_2", "Deep learning neural networks"),
-        ("doc_3", "Natural language processing"),
-        ("doc_4", "Computer vision and image recognition"),
-        ("doc_5", "Reinforcement learning algorithms"),
-    ];
-    
-    // Add document vectors
-    for (id, text) in documents {
-        let embedding = generate_embedding(text); // Your embedding function
-        let vector = GpuVector {
-            id: id.to_string(),
-            data: embedding,
-            metadata: {
-                let mut meta = std::collections::HashMap::new();
-                meta.insert("text".to_string(), text.to_string());
-                meta
-            },
-        };
-        storage.add_vectors(&[vector])?;
-    }
-    
-    // Search for similar documents
-    let query_text = "AI and machine learning";
-    let query_embedding = generate_embedding(query_text);
-    let results = storage.search(&query_embedding, 3)?;
-    
-    println!("Search results for: '{}'", query_text);
-    for (i, result) in results.iter().enumerate() {
-        println!("{}. {} (similarity: {:.4})", 
-                 i + 1, result.id, result.score);
-    }
-    
-    Ok(())
-}
-
-// Mock embedding function (replace with your actual implementation)
-fn generate_embedding(text: &str) -> Vec<f32> {
-    // In practice, use a real embedding model like sentence-transformers
-    (0..384).map(|i| (i as f32 + text.len() as f32) * 0.01).collect()
-}
-```
-
-### Batch Processing Example
-
-```rust
-use hive_gpu::metal::context::MetalNativeContext;
-use hive_gpu::traits::{GpuContext, GpuVectorStorage};
-use hive_gpu::types::{GpuVector, GpuDistanceMetric};
-
-#[tokio::main]
-async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let context = MetalNativeContext::new()?;
-    let mut storage = context.create_storage(128, GpuDistanceMetric::Cosine)?;
-    
-    // Generate large batch of vectors
-    let batch_size = 10000;
-    let mut vectors = Vec::with_capacity(batch_size);
-    
-    for i in 0..batch_size {
-        let data = (0..128).map(|_| rand::random::<f32>()).collect();
-        vectors.push(GpuVector {
-            id: format!("batch_vector_{}", i),
-            data,
-            metadata: std::collections::HashMap::new(),
-        });
-    }
-    
-    // Add vectors in batches for efficiency
-    let chunk_size = 1000;
-    for chunk in vectors.chunks(chunk_size) {
-        storage.add_vectors(chunk)?;
-        println!("Added {} vectors", chunk.len());
-    }
-    
-    // Batch search
-    let queries = vec![
-        (0..128).map(|_| rand::random::<f32>()).collect::<Vec<f32>>(),
-        (0..128).map(|_| rand::random::<f32>()).collect::<Vec<f32>>(),
-        (0..128).map(|_| rand::random::<f32>()).collect::<Vec<f32>>(),
-    ];
-    
-    for (i, query) in queries.iter().enumerate() {
-        let results = storage.search(query, 5)?;
-        println!("Query {}: Found {} results", i + 1, results.len());
-    }
-    
-    Ok(())
-}
-```
-
-## 🧪 Testing
-
-### Running Tests
-
-```bash
-# Test all features
-cargo test --all-features
-
-# Test specific backend
-cargo test --features metal-native  # macOS only
-cargo test --features cuda          # Linux/Windows (in development)
-
-# Run benchmarks
-cargo bench
-```
-
-### Example Test
-
-```rust
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use hive_gpu::metal::context::MetalNativeContext;
-    use hive_gpu::traits::{GpuContext, GpuVectorStorage};
-
-    #[test]
-    fn test_gpu_vector_operations() {
-        let context = MetalNativeContext::new().unwrap();
-        let mut storage = context.create_storage(4, GpuDistanceMetric::Cosine).unwrap();
-        
-        let vectors = vec![
-            GpuVector {
-                id: "test_1".to_string(),
-                data: vec![1.0, 0.0, 0.0, 0.0],
-                metadata: std::collections::HashMap::new(),
-            },
-            GpuVector {
-                id: "test_2".to_string(),
-                data: vec![0.0, 1.0, 0.0, 0.0],
-                metadata: std::collections::HashMap::new(),
-            },
-        ];
-        
-        storage.add_vectors(&vectors).unwrap();
-        
-        let query = vec![1.0, 0.0, 0.0, 0.0];
-        let results = storage.search(&query, 2).unwrap();
-        
-        assert_eq!(results.len(), 2);
-        assert_eq!(results[0].id, "test_1");
-        assert!(results[0].score > results[1].score);
-    }
-}
-```
-
-## 📚 API Reference
-
-### Core Types
-
-```rust
-pub struct GpuVector {
-    pub id: String,
-    pub data: Vec<f32>,
-    pub metadata: HashMap<String, String>,
-}
-
-pub struct GpuSearchResult {
-    pub id: String,
-    pub score: f32,
-    pub index: usize,
-}
-
-pub enum GpuDistanceMetric {
-    Cosine,
-    Euclidean,
-    DotProduct,
-}
-```
-
-### Traits
-
-```rust
-pub trait GpuContext {
-    fn create_storage(&self, dimension: usize, metric: GpuDistanceMetric) -> Result<Box<dyn GpuVectorStorage>>;
-    fn create_storage_with_config(&self, dimension: usize, metric: GpuDistanceMetric, config: HnswConfig) -> Result<Box<dyn GpuVectorStorage>>;
-}
-
-pub trait GpuVectorStorage {
-    fn add_vectors(&mut self, vectors: &[GpuVector]) -> Result<Vec<usize>>;
-    fn search(&self, query: &[f32], limit: usize) -> Result<Vec<GpuSearchResult>>;
-    fn remove_vectors(&mut self, ids: &[String]) -> Result<()>;
-    fn vector_count(&self) -> usize;
-}
-```
-
-## 🤝 Contributing
-
-We welcome contributions! Please see our [Contributing Guide](CONTRIBUTING.md) for details.
-
-### Development Setup
-
-```bash
-# Clone the repository
-git clone https://github.com/hivellm/hive-gpu.git
-cd hive-gpu
-
-# Install dependencies
-cargo build
-
-# Run tests
-cargo test --all-features
-
-# Run benchmarks
-cargo bench
-```
-
-## 📄 License
-
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
-
-## 🙏 Acknowledgments
-
-- **Metal Framework**: Apple's GPU compute framework
-- **CUDA**: NVIDIA's parallel computing platform
-- **Rust Community**: For the amazing ecosystem
-
-## 📞 Support
-
-- **GitHub Issues**: [Report bugs and request features](https://github.com/hivellm/hive-gpu/issues)
-- **Discussions**: [Community discussions](https://github.com/hivellm/hive-gpu/discussions)
-- **Documentation**: [API Documentation](https://docs.rs/hive-gpu)
+ROCm (AMD) and Intel (Arc via Vulkan Compute) backends have design documents
+under [`docs/analysis/`](docs/analysis/) and are not yet implemented.
 
 ---
 
-**Made with ❤️ by the HiveLLM team**
+## What's new in 0.2.0
+
+- 🔥 **CUDA backend is functional.** `CudaContext`, `CudaVectorStorage`, and
+  GPU-accelerated search (cuBLAS SGEMV for Cosine/DotProduct, derived L2) all
+  run against a real driver. 17 integration tests pass on RTX 4090.
+- Real device-info API on CUDA — compute capability, total/free VRAM, driver
+  version, PCI bus id — all queried live from the driver.
+- Dynamic buffer growth with device-to-device copy mirroring the Metal
+  backend's shape (2× → 1.5× → 1.2× adaptive factor).
+- Criterion benchmarks comparing GPU vs. CPU throughput under
+  [`benches/cuda_ops.rs`](benches/cuda_ops.rs).
+- CI job (`.github/workflows/cuda-build.yml`) builds against the official
+  `nvidia/cuda:12.4.1-devel-ubuntu22.04` image.
+- Project-wide `#![allow(warnings)]` removed; clippy runs with `-D warnings`
+  on all feature combinations.
+
+Full changelog in [`CHANGELOG.md`](CHANGELOG.md).
+
+---
+
+## Installation
+
+```toml
+[dependencies]
+# macOS — Metal backend (default)
+hive-gpu = "0.2.0"
+
+# Linux / Windows — CUDA backend
+hive-gpu = { version = "0.2.0", default-features = false, features = ["cuda"] }
+
+# Both (cross-platform crate — each cfg is gated internally)
+hive-gpu = { version = "0.2.0", features = ["metal-native", "cuda"] }
+```
+
+Runtime requirements for CUDA: NVIDIA driver (no CUDA Toolkit required —
+`cudarc` is built with `dynamic-linking`). For a development checkout you also
+need a reachable driver so integration tests can hit real hardware; without
+one, the suite runs as a no-op.
+
+---
+
+## Quick start
+
+### Metal (macOS)
+
+```rust
+use hive_gpu::metal::context::MetalNativeContext;
+use hive_gpu::traits::{GpuContext, GpuVectorStorage};
+use hive_gpu::types::{GpuDistanceMetric, GpuVector};
+
+fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let ctx = MetalNativeContext::new()?;
+    let mut storage = ctx.create_storage(128, GpuDistanceMetric::Cosine)?;
+
+    storage.add_vectors(&[
+        GpuVector::new("a".into(), vec![1.0; 128]),
+        GpuVector::new("b".into(), vec![0.5; 128]),
+    ])?;
+
+    let query = vec![0.9; 128];
+    for r in storage.search(&query, 5)? {
+        println!("{}  {:.4}", r.id, r.score);
+    }
+    Ok(())
+}
+```
+
+### CUDA (Linux / Windows)
+
+```rust
+use hive_gpu::cuda::CudaContext;
+use hive_gpu::traits::{GpuBackend, GpuContext, GpuVectorStorage};
+use hive_gpu::types::{GpuDistanceMetric, GpuVector};
+
+fn main() -> Result<(), Box<dyn std::error::Error>> {
+    if !CudaContext::is_available() {
+        eprintln!("no CUDA device reachable — using a CPU fallback instead");
+        return Ok(());
+    }
+
+    let ctx = CudaContext::new()?;
+    println!("{}", GpuBackend::device_info(&ctx).name);
+    //=> NVIDIA GeForce RTX 4090
+
+    let mut storage = ctx.create_storage(128, GpuDistanceMetric::DotProduct)?;
+    storage.add_vectors(&[
+        GpuVector::new("x".into(), vec![1.0; 128]),
+        GpuVector::new("y".into(), vec![0.9; 128]),
+    ])?;
+
+    let query = vec![1.0; 128];
+    for r in storage.search(&query, 5)? {
+        println!("{}  {:.4}", r.id, r.score);
+    }
+    Ok(())
+}
+```
+
+See [`examples/cuda_basic.rs`](examples/cuda_basic.rs) and
+[`examples/metal_basic.rs`](examples/metal_basic.rs) for runnable variants.
+
+---
+
+## Performance
+
+Two data points captured on real hardware. All numbers are median wall-clock
+from Criterion benchmarks (`cargo bench`).
+
+### CUDA — NVIDIA GeForce RTX 4090 (24 GB, driver 591.59, CUDA 13.1)
+
+**Search latency — DotProduct, 128-dim f32, top-10** (from
+[`benches/cuda_ops.rs`](benches/cuda_ops.rs)):
+
+|   N     | GPU (cuBLAS SGEMV) | CPU naïve reference | GPU speedup |
+|--------:|-------------------:|--------------------:|------------:|
+|   1 000 |             124 µs |               63 µs |       0.51× |
+|  10 000 |             287 µs |              690 µs |       **2.40×** |
+| 100 000 |            4.01 ms |            13.04 ms |       **3.25×** |
+
+For N < 10 K the SGEMV launch + host-to-device copy dominates useful work and
+a scalar CPU loop wins. From 10 K onward the GPU wins and the margin widens
+roughly linearly with N.
+
+**Add-vectors throughput** (128-dim f32):
+
+| Batch size | Wall-clock | Throughput        |
+|-----------:|-----------:|------------------:|
+|     1 000  |     431 µs | 2.32 M elements/s |
+|    10 000  |    7.10 ms | 1.41 M elements/s |
+
+### Metal — Apple M3 Pro
+
+|  Operation                   | CPU baseline | Metal      | Speedup |
+|------------------------------|-------------:|-----------:|--------:|
+| Vector addition (sustained)  |   1 000 vec/s | 3 728 vec/s |   3.7× |
+| Vector addition (peak 10 K)  |   1 000 vec/s | 4 250 vec/s |   4.25× |
+| Search latency (k = 10)      |        ~1 ms |      0.92 µs | ~1 000× |
+| Search throughput            |           —  | 1.08 M qps  |   —    |
+
+Full methodology, hardware matrix, and historical runs live in
+[`docs/benchmarks/PERFORMANCE.md`](docs/benchmarks/PERFORMANCE.md).
+
+---
+
+## GPU backend matrix
+
+|  OS                         | Metal | CUDA | ROCm | Intel | CPU |
+|-----------------------------|:-----:|:----:|:----:|:-----:|:---:|
+| macOS (Apple Silicon)       |  ✅   |  ❌  |  ❌  |   ❌  |  ✅ |
+| Linux x86_64 + NVIDIA       |  ❌   |  ✅  |  ❌  |   ❌  |  ✅ |
+| Linux x86_64 + AMD          |  ❌   |  ❌  |  📝  |   ❌  |  ✅ |
+| Linux x86_64 + Intel Arc    |  ❌   |  ❌  |  ❌  |   📝  |  ✅ |
+| Windows x86_64 + NVIDIA     |  ❌   |  ✅  |  ❌  |   ❌  |  ✅ |
+| Windows x86_64 + AMD        |  ❌   |  ❌  |  📝  |   📝  |  ✅ |
+
+Legend: ✅ shipping · 📝 design document, not implemented · ❌ unsupported.
+
+Backend-selection order at runtime is `Metal > CUDA > CPU`. Override via the
+`HIVE_GPU_BACKEND` env var (planned).
+
+---
+
+## Feature flags
+
+| Feature        | Target OS        | Pulls in                                            |
+|----------------|------------------|-----------------------------------------------------|
+| `metal-native` | macOS            | `objc2-metal`, `objc2-foundation`, `objc2`          |
+| `cuda`         | Linux / Windows  | `cudarc` (`driver` + `cublas` + `dynamic-linking`)  |
+
+`metal-native` is the default. On non-macOS hosts the default feature
+contributes nothing (its deps are target-gated), so the crate compiles clean
+everywhere with default features.
+
+---
+
+## Testing and benchmarks
+
+```bash
+# Metal (macOS)
+cargo test --features metal-native
+cargo bench --features metal-native --bench gpu_operations
+
+# CUDA (Linux / Windows with an NVIDIA driver installed)
+cargo test --features cuda --test cuda_smoke --test cuda_device_info --test cuda_vector_ops
+cargo bench --features cuda --bench cuda_ops
+```
+
+All CUDA tests are a no-op on hosts without a reachable driver, so they stay
+green on CI runners that lack GPU hardware.
+
+---
+
+## Roadmap
+
+- **v0.3.x** — ROCm backend (AMD Instinct / RDNA via HIP + rocBLAS). Design:
+  [`docs/analysis/gcn/`](docs/analysis/gcn/).
+- **v0.3.x / v0.4** — Intel backend via Vulkan Compute + `ash` + SPIR-V,
+  primarily targeting Arc Pro hardware. Design:
+  [`docs/analysis/intel/`](docs/analysis/intel/).
+- **v0.4** — GPU HNSW construction and search on CUDA and Metal, quantization
+  (PQ / SQ), GPU-side top-K (radix select).
+
+Detailed roadmap in [`docs/ROADMAP.md`](docs/ROADMAP.md).
+
+---
+
+## Project documentation
+
+- [`docs/analysis/`](docs/analysis/) — backend implementation analyses
+  (CUDA, ROCm, Intel) with gap analysis, architectural decisions, and phased
+  plans.
+- [`docs/benchmarks/PERFORMANCE.md`](docs/benchmarks/PERFORMANCE.md) — full
+  performance guide and historical numbers.
+- [`docs/ROADMAP.md`](docs/ROADMAP.md) — release plan.
+- [`CHANGELOG.md`](CHANGELOG.md) — release notes.
+- [`CONTRIBUTING.md`](CONTRIBUTING.md) — contribution guide.
+
+---
+
+## License
+
+MIT — see [`LICENSE`](LICENSE).
