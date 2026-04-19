@@ -61,6 +61,18 @@ pub enum HiveGpuError {
     #[error("cuBLAS error: {0}")]
     CublasError(String),
 
+    /// HIP driver or runtime failure
+    #[error("HIP error: {0}")]
+    HipError(String),
+
+    /// rocBLAS call failure
+    #[error("rocBLAS error: {0}")]
+    RocblasError(String),
+
+    /// Generic ROCm backend error (loader, setup, teardown)
+    #[error("ROCm error: {0}")]
+    RocmError(String),
+
     /// Internal error
     #[error("Internal error: {0}")]
     InternalError(String),

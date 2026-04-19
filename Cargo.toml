@@ -34,12 +34,18 @@ objc2 = { version = "0.6", optional = true }
 [target.'cfg(any(target_os = "linux", target_os = "windows"))'.dependencies]
 cudarc = { version = "0.13", features = ["driver", "cublas", "cuda-12040", "dynamic-linking"], optional = true, default-features = false }
 
+[target.'cfg(target_os = "linux")'.dependencies]
+libloading = { version = "0.8", optional = true }
+
 [features]
 default = ["metal-native"]
 # Pure Metal Native implementation with objc2
 metal-native = ["objc2-metal", "objc2-foundation", "objc2"]
 # CUDA native implementation using cudarc (driver API + cuBLAS)
 cuda = ["dep:cudarc"]
+# ROCm / HIP native implementation. Dynamic-link libamdhip64 / librocblas at
+# runtime via libloading so cargo build works on hosts without ROCm.
+rocm = ["dep:libloading"]
 
 [dev-dependencies]
 criterion = { version = "0.5", features = ["html_reports"] }

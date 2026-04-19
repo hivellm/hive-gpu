@@ -25,6 +25,9 @@ pub mod metal;
 #[cfg(feature = "cuda")]
 pub mod cuda;
 
+#[cfg(all(feature = "rocm", target_os = "linux"))]
+pub mod rocm;
+
 // Backend detection
 pub mod backends;
 

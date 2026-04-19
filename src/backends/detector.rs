@@ -12,6 +12,8 @@ pub enum GpuBackendType {
     Metal,
     /// CUDA (NVIDIA)
     Cuda,
+    /// ROCm / HIP (AMD)
+    Rocm,
     /// CPU fallback
     Cpu,
 }
@@ -21,6 +23,7 @@ impl std::fmt::Display for GpuBackendType {
         match self {
             GpuBackendType::Metal => write!(f, "Metal"),
             GpuBackendType::Cuda => write!(f, "CUDA"),
+            GpuBackendType::Rocm => write!(f, "ROCm"),
             GpuBackendType::Cpu => write!(f, "CPU"),
         }
     }
@@ -47,6 +50,14 @@ pub fn detect_available_backends() -> Vec<GpuBackendType> {
         }
     }
 
+    // Check ROCm availability (Linux-only)
+    #[cfg(all(feature = "rocm", target_os = "linux"))]
+    {
+        if is_rocm_available() {
+            backends.push(GpuBackendType::Rocm);
+        }
+    }
+
     // CPU is always available as fallback
     backends.push(GpuBackendType::Cpu);
 
@@ -57,11 +68,13 @@ pub fn detect_available_backends() -> Vec<GpuBackendType> {
 pub fn select_best_backend() -> Result<GpuBackendType> {
     let available = detect_available_backends();
 
-    // Priority order: Metal > CUDA > CPU
+    // Priority order: Metal > CUDA > ROCm > CPU
     if available.contains(&GpuBackendType::Metal) {
         Ok(GpuBackendType::Metal)
     } else if available.contains(&GpuBackendType::Cuda) {
         Ok(GpuBackendType::Cuda)
+    } else if available.contains(&GpuBackendType::Rocm) {
+        Ok(GpuBackendType::Rocm)
     } else if available.contains(&GpuBackendType::Cpu) {
         Ok(GpuBackendType::Cpu)
     } else {
@@ -93,6 +106,16 @@ fn is_cuda_available() -> bool {
     }
 }
 
+/// Check if ROCm / HIP is available on the current system.
+///
+/// Uses the libloading-based probe in `crate::rocm::context::RocmContext`
+/// which dlopens `libamdhip64` / `librocblas` at call time. Returns
+/// `false` when neither library is reachable.
+#[cfg(all(feature = "rocm", target_os = "linux"))]
+fn is_rocm_available() -> bool {
+    crate::rocm::context::RocmContext::is_available()
+}
+
 /// Get backend-specific device information
 pub fn get_backend_info(backend: GpuBackendType) -> Result<String> {
     match backend {
@@ -122,6 +145,16 @@ pub fn get_backend_info(backend: GpuBackendType) -> Result<String> {
                 Err(HiveGpuError::NoDeviceAvailable)
             }
         }
+        GpuBackendType::Rocm => {
+            #[cfg(all(feature = "rocm", target_os = "linux"))]
+            {
+                Ok("ROCm device available".to_string())
+            }
+            #[cfg(not(all(feature = "rocm", target_os = "linux")))]
+            {
+                Err(HiveGpuError::NoDeviceAvailable)
+            }
+        }
         GpuBackendType::Cpu => Ok("CPU fallback".to_string()),
     }
 }
@@ -143,6 +176,14 @@ pub fn get_backend_performance_info(backend: GpuBackendType) -> BackendPerforman
             compute_units: 128,           // RTX 4090 example
             memory_size_gb: 24,
             supports_hnsw: true,
+            supports_batch: true,
+        },
+        GpuBackendType::Rocm => BackendPerformanceInfo {
+            name: "ROCm".to_string(),
+            memory_bandwidth_gbps: 960.0, // RX 7900 XTX example
+            compute_units: 96,            // RX 7900 XTX example
+            memory_size_gb: 24,
+            supports_hnsw: false,
             supports_batch: true,
         },
         GpuBackendType::Cpu => BackendPerformanceInfo {
