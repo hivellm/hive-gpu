@@ -22,42 +22,105 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     for DotProduct, Cosine (SGEMV + norm normalisation), and Euclidean
     (L2² derived from dots + norms). Top-K on the CPU after a single
     `dtoh_sync_copy`.
-- **CUDA integration tests** (17 tests, all passing on RTX 4090):
-  `tests/cuda_smoke.rs`, `tests/cuda_device_info.rs`,
-  `tests/cuda_vector_ops.rs`. Each test is a no-op on hosts without a
-  reachable driver, keeping CI green on GPU-less runners.
-- **CUDA benchmark** `benches/cuda_ops.rs` comparing GPU throughput against a
-  naïve CPU reference for add and search.
-- **GitHub Actions workflow** `.github/workflows/cuda-build.yml` runs check,
-  clippy, fmt, and the test suite against the
+- **CUDA IVF index** (`CudaIvfIndex`, phase4b) — inverted-file index on
+  NVIDIA. k-means++ initialisation + Lloyd iterations for training,
+  cuBLAS SGEMM for the assignment step (query × centroids), per-list
+  residual refinement, and an adjustable `nprobe`. Validated on RTX
+  4090: **3.67× faster than the brute-force baseline at 1 M vectors**,
+  recall ≥ 0.95 on clustered data. Tests in `tests/cuda_ivf.rs`,
+  benchmarks in `benches/cuda_ivf.rs`.
+- **CUDA integration tests** (17 brute-force + IVF tests, all passing on
+  RTX 4090): `tests/cuda_smoke.rs`, `tests/cuda_device_info.rs`,
+  `tests/cuda_vector_ops.rs`, `tests/cuda_ivf.rs`. Each test is a no-op
+  on hosts without a reachable driver, keeping CI green on GPU-less
+  runners.
+- **CUDA benchmarks** `benches/cuda_ops.rs` and `benches/cuda_ivf.rs`
+  comparing GPU throughput against a naïve CPU reference.
+- **GitHub Actions workflow** `.github/workflows/cuda-build.yml` runs
+  check, clippy, fmt, and the test suite against the
   `nvidia/cuda:12.4.1-devel-ubuntu22.04` container image.
-- `HiveGpuError::CudaError(String)` and `CublasError(String)` variants.
-- Minimal `build.rs` with rerun hints for future CUDA kernel assets.
-- Multi-backend analyses under `docs/analysis/{cuda,gcn,intel}/` documenting
-  state, gaps, and phased plans.
+- **Metal brute-force via a real compute kernel** (phase4a, *authored
+  blind*). Replaces the prior CPU-fallback shim with a
+  `sgemv_dot.metal` compute shader driven through
+  `MTLComputeCommandEncoder`. Supports DotProduct, Cosine, and
+  Euclidean on Apple Silicon.
+- **Metal IVF index** (`MetalIvfIndex`, phase4c, *authored blind*) —
+  mirrors `CudaIvfIndex`, wired to two custom Metal compute kernels
+  (`sgemv_dot.metal`, `sgemm_dot.metal`). Tests in
+  `tests/metal_bruteforce.rs` and `tests/metal_ivf.rs`.
+- **ROCm / HIP backend** (phase3b, *authored blind*) for AMD GPUs on
+  Linux (gfx900–gfx1100). `RocmContext` + `RocmVectorStorage` +
+  `RocmIvfIndex`, hand-rolled HIP FFI via `libloading`
+  (`libamdhip64.so` + `librocblas.so`). Mirrors the CUDA architecture
+  one-for-one. Tests in `tests/rocm_smoke.rs` and
+  `tests/rocm_ivf.rs`.
+- **Intel / Vulkan Compute backend** (phase3c, *authored blind*) for
+  Intel Arc / Battlemage on Linux and Windows, with
+  `HIVE_GPU_VULKAN_UNIVERSAL=1` fallback for any Vulkan 1.2 GPU.
+  `IntelContext` + `IntelVectorStorage` + `IntelIvfIndex` built on
+  `ash 0.38`. WGSL compute shaders (`sgemv_dot.wgsl`,
+  `sgemm_dot.wgsl`) compiled to SPIR-V at build time via `naga`
+  (pure-Rust, no CMake / C++ toolchain). Tests in
+  `tests/intel_smoke.rs` and `tests/intel_ivf.rs`.
+- `HiveGpuError` variants for every new backend: `CudaError`,
+  `CublasError`, `HipError`, `RocblasError`, `RocmError`,
+  `VulkanError`, `IntelError`, `SpirvCompileError`.
+- `GpuBackendType::{Rocm, Intel}` in `src/backends/detector.rs`. New
+  priority order is `Metal > CUDA > ROCm > Intel > CPU`, each probed
+  with a real loader check — `is_rocm_available()` via `libloading`,
+  `is_intel_available()` via Vulkan `vkEnumeratePhysicalDevices`.
+- `IvfConfig` in `src/types.rs` — shared across all four IVF
+  implementations (CUDA / Metal / ROCm / Intel).
+- `build.rs` compiles the Intel WGSL shaders when the `intel` feature
+  is active and emits rerun hints for CUDA kernel assets.
+- Multi-backend analyses under `docs/analysis/{cuda,gcn,intel}/`
+  documenting state, gaps, and phased plans.
 
 ### Changed
 
 - Detection in `src/backends/detector.rs` now uses
-  `cudarc::driver::result::init` + `get_count` instead of env-var inspection.
-  Target-gated to Linux / Windows; macOS is unaffected.
+  `cudarc::driver::result::init` + `get_count` instead of env-var
+  inspection. Target-gated to Linux / Windows; macOS is unaffected.
 - `cuda` Cargo feature now actually pulls in its dependency: `cuda =
   ["dep:cudarc"]` with `cudarc` declared in a target-gated
-  `[target.'cfg(any(target_os = "linux", target_os = "windows"))']` block
-  carrying `driver`, `cublas`, `cuda-12040`, and `dynamic-linking` features.
-- Removed project-wide `#![allow(warnings)]` from `src/lib.rs`. Cleaned up
-  24 latent warnings (unused imports, underscore-prefixed params, scoped
-  `#[allow(dead_code)]` on struct fields still being populated by follow-up
-  phases). `cargo clippy --features cuda --lib --tests --benches -- -D
-  warnings` is now part of the quality gate.
-- `docs/benchmarks/PERFORMANCE.md` updated with RTX 4090 baseline numbers
-  and CUDA test suite summary.
+  `[target.'cfg(any(target_os = "linux", target_os = "windows"))']`
+  block carrying `driver`, `cublas`, `cuda-12040`, and
+  `dynamic-linking` features.
+- `default-features` resolves to nothing on non-macOS hosts — every
+  backend dep is target- and feature-gated, so the crate builds
+  clean everywhere with default features.
+- Removed project-wide `#![allow(warnings)]` from `src/lib.rs`.
+  Cleaned up 24 latent warnings (unused imports, underscore-prefixed
+  params, scoped `#[allow(dead_code)]` on struct fields still being
+  populated by follow-up phases). `cargo clippy --all-features --lib
+  --tests --benches -- -D warnings` is now part of the quality gate.
+- `docs/benchmarks/PERFORMANCE.md` updated with RTX 4090 baseline
+  numbers, CUDA IVF head-to-head vs. brute-force, and the CUDA test
+  suite summary.
+- `docs/ROADMAP.md` reflects the actual ship order with explicit
+  validated-vs-blind status per backend.
 
 ### Breaking
 
 - None at the public-API level; existing Metal code paths and trait
-  signatures are unchanged. The `cuda` feature behaviour changed from a
-  compile-time no-op in 0.1.x to a fully functional backend in 0.2.0.
+  signatures are unchanged. The `cuda` feature behaviour changed from
+  a compile-time no-op in 0.1.x to a fully functional backend in
+  0.2.0.
+
+### Status notes
+
+Only the CUDA path (brute-force + IVF) has been validated on real
+hardware (RTX 4090) in the 0.2.0 release window. Metal (real kernel +
+IVF), ROCm, and Intel ship as **authored blind** — the code
+cross-compiles, passes `clippy -D warnings`, and has a complete test
+suite, but has never executed against the target hardware. Follow-up
+validation tasks are live in `.rulebook/tasks/` and will ship a
+minor bump each once the corresponding maintainer runs them:
+
+- `phase4d_validate-metal-backend-on-mac` — Metal brute-force + IVF
+- `phase4e_validate-rocm-backend-on-amd` — ROCm brute-force + IVF
+- `phase4f_validate-intel-backend-on-vulkan` — Intel / Vulkan
+  brute-force + IVF
 
 ## [0.1.10] - 2025-11-04
 

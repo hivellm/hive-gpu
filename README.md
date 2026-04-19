@@ -7,32 +7,61 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Build Status](https://github.com/hivellm/hive-gpu/workflows/CI/badge.svg)](https://github.com/hivellm/hive-gpu/actions)
 
-Two production backends as of 0.2.0:
+Four GPU backends, all feature-gated and target-gated so the crate builds
+cleanly on every host:
 
-- **Metal** — Apple Silicon (M-series), built on `objc2-metal`.
+- **Metal** — Apple Silicon (M-series), built on `objc2-metal`. Brute-force
+  search and IVF via custom compute kernels. *IVF and the new real-kernel
+  brute-force path are authored but not yet validated on macOS — see
+  `.rulebook/tasks/phase4d_validate-metal-backend-on-mac`.*
 - **CUDA** — NVIDIA (Volta / sm_70+) on Linux and Windows, built on `cudarc`
-  driver API + cuBLAS SGEMV. Validated on RTX 4090.
+  driver API + cuBLAS SGEMV/SGEMM. Brute-force + IVF. Validated on RTX 4090
+  (3.67× over brute-force at 1 M vectors).
+- **ROCm** — AMD (gfx900 through gfx1100) on Linux, via hand-rolled HIP FFI
+  + rocBLAS. Brute-force + IVF. *Authored blind — see
+  `.rulebook/tasks/phase4e_validate-rocm-backend-on-amd`.*
+- **Intel / Vulkan Compute** — Intel Arc / Battlemage (preferred) on Linux
+  and Windows, with `HIVE_GPU_VULKAN_UNIVERSAL=1` fallback for any Vulkan
+  1.2 GPU. Built on `ash` + WGSL shaders compiled to SPIR-V via `naga`.
+  Brute-force + IVF. *Authored blind — see
+  `.rulebook/tasks/phase4f_validate-intel-backend-on-vulkan`.*
 
-ROCm (AMD) and Intel (Arc via Vulkan Compute) backends have design documents
-under [`docs/analysis/`](docs/analysis/) and are not yet implemented.
+Design notes for each backend live in [`docs/analysis/`](docs/analysis/).
 
 ---
 
 ## What's new in 0.2.0
 
-- 🔥 **CUDA backend is functional.** `CudaContext`, `CudaVectorStorage`, and
-  GPU-accelerated search (cuBLAS SGEMV for Cosine/DotProduct, derived L2) all
-  run against a real driver. 17 integration tests pass on RTX 4090.
-- Real device-info API on CUDA — compute capability, total/free VRAM, driver
-  version, PCI bus id — all queried live from the driver.
+- 🔥 **CUDA backend is functional.** `CudaContext`, `CudaVectorStorage`,
+  GPU-accelerated search (cuBLAS SGEMV for Cosine/DotProduct, derived L2),
+  and a full IVF index (`CudaIvfIndex` — k-means++ + cuBLAS SGEMM) all run
+  against a real driver. **3.67× over brute-force at 1 M vectors**, recall
+  ≥ 0.95 on clustered data.
+- **Metal** gets a real brute-force compute kernel (replacing the prior CPU
+  shim) plus `MetalIvfIndex`. Authored blind — awaits Apple Silicon
+  validation.
+- **ROCm / HIP backend** for AMD GPUs on Linux — `RocmContext` +
+  `RocmVectorStorage` + `RocmIvfIndex`, hand-rolled HIP FFI over
+  `libamdhip64` + `librocblas`. Authored blind — awaits AMD validation.
+- **Intel / Vulkan Compute backend** — `IntelContext` +
+  `IntelVectorStorage` + `IntelIvfIndex` on `ash`, WGSL shaders compiled to
+  SPIR-V at build time via `naga` (pure-Rust, no CMake / C++ toolchain).
+  Works on any Vulkan 1.2 GPU under `HIVE_GPU_VULKAN_UNIVERSAL=1`. Authored
+  blind — awaits Vulkan-host validation.
+- Real device-info API on CUDA — compute capability, total/free VRAM,
+  driver version, PCI bus id — all queried live from the driver.
 - Dynamic buffer growth with device-to-device copy mirroring the Metal
   backend's shape (2× → 1.5× → 1.2× adaptive factor).
-- Criterion benchmarks comparing GPU vs. CPU throughput under
-  [`benches/cuda_ops.rs`](benches/cuda_ops.rs).
+- Criterion benchmarks under [`benches/cuda_ops.rs`](benches/cuda_ops.rs)
+  and [`benches/cuda_ivf.rs`](benches/cuda_ivf.rs).
 - CI job (`.github/workflows/cuda-build.yml`) builds against the official
   `nvidia/cuda:12.4.1-devel-ubuntu22.04` image.
 - Project-wide `#![allow(warnings)]` removed; clippy runs with `-D warnings`
   on all feature combinations.
+
+Only CUDA is validated on real hardware (RTX 4090). Metal, ROCm, and Intel
+are code-complete but pending maintainer validation — see
+`.rulebook/tasks/phase4{d,e,f}_*` for the validation checklists.
 
 Full changelog in [`CHANGELOG.md`](CHANGELOG.md).
 
@@ -48,14 +77,28 @@ hive-gpu = "0.2.0"
 # Linux / Windows — CUDA backend
 hive-gpu = { version = "0.2.0", default-features = false, features = ["cuda"] }
 
-# Both (cross-platform crate — each cfg is gated internally)
-hive-gpu = { version = "0.2.0", features = ["metal-native", "cuda"] }
+# Linux — AMD ROCm / HIP backend
+hive-gpu = { version = "0.2.0", default-features = false, features = ["rocm"] }
+
+# Linux / Windows — Intel / Vulkan Compute backend (also works as a universal
+# Vulkan fallback on any Vulkan 1.2 GPU under HIVE_GPU_VULKAN_UNIVERSAL=1)
+hive-gpu = { version = "0.2.0", default-features = false, features = ["intel"] }
+
+# Everything (cross-platform crate — each cfg is gated internally)
+hive-gpu = { version = "0.2.0", features = ["metal-native", "cuda", "rocm", "intel"] }
 ```
 
-Runtime requirements for CUDA: NVIDIA driver (no CUDA Toolkit required —
-`cudarc` is built with `dynamic-linking`). For a development checkout you also
-need a reachable driver so integration tests can hit real hardware; without
-one, the suite runs as a no-op.
+Runtime requirements:
+
+- **CUDA** — NVIDIA driver (no CUDA Toolkit required — `cudarc` is built
+  with `dynamic-linking`).
+- **ROCm** — ROCm 6.x runtime with `libamdhip64.so` and `librocblas.so` on
+  the dynamic linker path.
+- **Intel** — Vulkan 1.2 loader (`libvulkan.so.1` / `vulkan-1.dll`), shipped
+  with any recent GPU driver.
+
+For a development checkout you also need a reachable driver so integration
+tests can hit real hardware; without one, each suite runs as a no-op.
 
 ---
 
@@ -166,26 +209,33 @@ Full methodology, hardware matrix, and historical runs live in
 
 |  OS                         | Metal | CUDA | ROCm | Intel | CPU |
 |-----------------------------|:-----:|:----:|:----:|:-----:|:---:|
-| macOS (Apple Silicon)       |  ✅   |  ❌  |  ❌  |   ❌  |  ✅ |
-| Linux x86_64 + NVIDIA       |  ❌   |  ✅  |  ❌  |   ❌  |  ✅ |
-| Linux x86_64 + AMD          |  ❌   |  ❌  |  📝  |   ❌  |  ✅ |
-| Linux x86_64 + Intel Arc    |  ❌   |  ❌  |  ❌  |   📝  |  ✅ |
-| Windows x86_64 + NVIDIA     |  ❌   |  ✅  |  ❌  |   ❌  |  ✅ |
-| Windows x86_64 + AMD        |  ❌   |  ❌  |  📝  |   📝  |  ✅ |
+| macOS (Apple Silicon)       |  🟡   |  ❌  |  ❌  |   ❌  |  ✅ |
+| Linux x86_64 + NVIDIA       |  ❌   |  ✅  |  ❌  |   🟡  |  ✅ |
+| Linux x86_64 + AMD          |  ❌   |  ❌  |  🟡  |   🟡  |  ✅ |
+| Linux x86_64 + Intel Arc    |  ❌   |  ❌  |  ❌  |   🟡  |  ✅ |
+| Windows x86_64 + NVIDIA     |  ❌   |  ✅  |  ❌  |   🟡  |  ✅ |
+| Windows x86_64 + AMD        |  ❌   |  ❌  |  ❌  |   🟡  |  ✅ |
+| Windows x86_64 + Intel Arc  |  ❌   |  ❌  |  ❌  |   🟡  |  ✅ |
 
-Legend: ✅ shipping · 📝 design document, not implemented · ❌ unsupported.
+Legend: ✅ shipping and validated · 🟡 code-complete, pending hardware
+validation · ❌ unsupported.
 
-Backend-selection order at runtime is `Metal > CUDA > CPU`. Override via the
-`HIVE_GPU_BACKEND` env var (planned).
+On Linux/Windows the Intel / Vulkan backend doubles as a universal
+Vulkan-Compute fallback when `HIVE_GPU_VULKAN_UNIVERSAL=1` is set.
+
+Backend-selection order at runtime is `Metal > CUDA > ROCm > Intel > CPU`.
+Override via the `HIVE_GPU_BACKEND` env var (planned).
 
 ---
 
 ## Feature flags
 
-| Feature        | Target OS        | Pulls in                                            |
-|----------------|------------------|-----------------------------------------------------|
-| `metal-native` | macOS            | `objc2-metal`, `objc2-foundation`, `objc2`          |
-| `cuda`         | Linux / Windows  | `cudarc` (`driver` + `cublas` + `dynamic-linking`)  |
+| Feature        | Target OS        | Pulls in                                                     |
+|----------------|------------------|--------------------------------------------------------------|
+| `metal-native` | macOS            | `objc2-metal`, `objc2-foundation`, `objc2`                   |
+| `cuda`         | Linux / Windows  | `cudarc` (`driver` + `cublas` + `dynamic-linking`)           |
+| `rocm`         | Linux            | `libloading` (dlopens `libamdhip64.so` + `librocblas.so`)    |
+| `intel`        | Linux / Windows  | `ash` (Vulkan loader) + `naga` (WGSL → SPIR-V at build time) |
 
 `metal-native` is the default. On non-macOS hosts the default feature
 contributes nothing (its deps are target-gated), so the crate compiles clean
@@ -201,24 +251,30 @@ cargo test --features metal-native
 cargo bench --features metal-native --bench gpu_operations
 
 # CUDA (Linux / Windows with an NVIDIA driver installed)
-cargo test --features cuda --test cuda_smoke --test cuda_device_info --test cuda_vector_ops
-cargo bench --features cuda --bench cuda_ops
+cargo test --features cuda --test cuda_smoke --test cuda_device_info \
+                          --test cuda_vector_ops --test cuda_ivf
+cargo bench --features cuda --bench cuda_ops --bench cuda_ivf
+
+# ROCm (Linux with ROCm 6.x installed)
+cargo test --features rocm --test rocm_smoke --test rocm_ivf
+
+# Intel / Vulkan (Linux / Windows with a Vulkan 1.2 GPU)
+cargo test --features intel --test intel_smoke --test intel_ivf
+# On a non-Intel Vulkan GPU, set HIVE_GPU_VULKAN_UNIVERSAL=1 first.
 ```
 
-All CUDA tests are a no-op on hosts without a reachable driver, so they stay
+Every suite is a no-op on hosts without a reachable driver, so they stay
 green on CI runners that lack GPU hardware.
 
 ---
 
 ## Roadmap
 
-- **v0.3.x** — ROCm backend (AMD Instinct / RDNA via HIP + rocBLAS). Design:
-  [`docs/analysis/gcn/`](docs/analysis/gcn/).
-- **v0.3.x / v0.4** — Intel backend via Vulkan Compute + `ash` + SPIR-V,
-  primarily targeting Arc Pro hardware. Design:
-  [`docs/analysis/intel/`](docs/analysis/intel/).
-- **v0.4** — GPU HNSW construction and search on CUDA and Metal, quantization
-  (PQ / SQ), GPU-side top-K (radix select).
+- **v0.2.x** — hardware validation pass for the three blind backends
+  (Metal, ROCm, Intel). Each ships its own point release once the matching
+  `phase4{d,e,f}` task lands benchmarks and test results on real hardware.
+- **v0.4** — GPU HNSW construction and search across all four backends,
+  quantization (PQ / SQ), GPU-side top-K (radix select).
 
 Detailed roadmap in [`docs/ROADMAP.md`](docs/ROADMAP.md).
 
