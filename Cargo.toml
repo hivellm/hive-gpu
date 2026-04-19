@@ -56,6 +56,11 @@ name = "cuda_ops"
 harness = false
 required-features = ["cuda"]
 
+[[bench]]
+name = "cuda_ivf"
+harness = false
+required-features = ["cuda"]
+
 [[example]]
 name = "metal_basic"
 required-features = ["metal-native"]

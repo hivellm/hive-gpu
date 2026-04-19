@@ -65,6 +65,63 @@ Interpretation:
 - `tests/cuda_vector_ops.rs` — 8 tests covering add/remove/clear/search and
   numerical agreement vs a CPU reference within 1e-3.
 
+#### CUDA IVF — v0.3.0 baseline
+
+IVF index backed by cuBLAS SGEMM (training assignment) + SGEMV (coarse and
+per-cluster refined search). Training uses k-means++ init followed by Lloyd
+iterations; argmin is computed on the host after a single dtoh copy.
+
+**Build time** (128-dim f32, `n_list ≈ sqrt(N)`, 10 iter k-means):
+
+| N        | Build time | Throughput       |
+|---------:|-----------:|-----------------:|
+|  10 000  |      31 ms | 310 K elements/s |
+| 100 000  |     480 ms | 208 K elements/s |
+
+**Search latency @ 100 K vectors** (128-dim, DotProduct, top-10, `n_list = 256`):
+
+| `nprobe` | Latency  | Clusters probed |
+|---------:|---------:|----------------:|
+|        1 |   219 µs |            0.4% |
+|        4 |   599 µs |            1.6% |
+|       16 |  2.31 ms |            6.3% |
+|       64 |  8.47 ms |             25% |
+|      256 |  34.5 ms | 100% (full scan) |
+
+The sweet spot sits at `nprobe = 4–16`: meaningful recall at sub-millisecond
+to ~2 ms latency. Probing more than ~25% of clusters costs more than
+brute-force because each cluster launch pays fixed cuBLAS overhead.
+
+**IVF vs brute-force @ 1 M vectors** (128-dim, DotProduct, top-10):
+
+| Index              | Latency  | Relative |
+|--------------------|---------:|---------:|
+| Brute-force SGEMV  | 45.6 ms  |     1.0× |
+| IVF `nprobe = 64`  | 12.4 ms  | **3.67×** |
+
+IVF wins at scale — the brute-force cost grows linearly with N, the IVF cost
+grows with the number of probed vectors (= `nprobe * N / n_list`, which at
+typical ratios stays roughly constant).
+
+**Recall targets (validated in `tests/cuda_ivf.rs`)**
+
+| Metric      | `nprobe`          | Recall@10 on random data |
+|-------------|-------------------|-------------------------:|
+| DotProduct  | `n_list / 4`      |                    0.76  |
+| Euclidean   | `n_list / 4`      |                    0.78  |
+| DotProduct  | `n_list` (full scan) |                 ≥ 0.95  |
+
+Random uniform data is the hardest case for IVF; real embedding datasets
+with genuine cluster structure score materially higher (FAISS reports 0.95+
+at `nprobe = n_list / 16` on SIFT-style workloads).
+
+**Test suite (8 tests, all passing)**
+
+- `tests/cuda_ivf.rs` — config validation, build guard rails, cluster
+  balance on synthetic blobs, `set_nprobe` behaviour, recall@10 vs CPU
+  brute-force on DotProduct and Euclidean, and monotonic recall growth
+  with `nprobe`.
+
 ### Vector Operations
 
 #### Addition Throughput

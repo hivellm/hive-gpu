@@ -15,7 +15,7 @@ pub use traits::{
 };
 pub use types::{
     GpuCapabilities, GpuDeviceInfo, GpuDistanceMetric, GpuMemoryStats, GpuSearchResult, GpuVector,
-    HnswConfig, VectorMetadata,
+    HnswConfig, IvfConfig, VectorMetadata,
 };
 
 // Platform-specific modules

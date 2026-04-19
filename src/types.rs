@@ -310,6 +310,59 @@ impl Default for HnswConfig {
     }
 }
 
+/// Configuration for an IVF (Inverted File) index.
+///
+/// IVF partitions the vector space into `n_list` Voronoi cells via k-means.
+/// At query time, only the `nprobe` cells closest to the query are searched,
+/// making search cost roughly `O(n_list + nprobe * N / n_list)` instead of
+/// `O(N)`. Higher `nprobe` yields higher recall at the cost of latency.
+///
+/// Defaults follow the FAISS convention of `n_list ≈ sqrt(N)` and
+/// `nprobe = n_list / 16` for a ~0.95 recall@10 starting point.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct IvfConfig {
+    /// Number of Voronoi cells (centroids).
+    pub n_list: usize,
+    /// Number of cells to probe per query.
+    pub nprobe: usize,
+    /// Upper bound on training-sample size used by k-means. The effective
+    /// sample is `min(training_sample_size, input.len())`.
+    pub training_sample_size: usize,
+    /// Maximum Lloyd iterations during training.
+    pub kmeans_iters: usize,
+    /// Random seed for k-means++ initialisation. `None` ⇒ non-deterministic.
+    pub seed: Option<u64>,
+}
+
+impl Default for IvfConfig {
+    fn default() -> Self {
+        Self {
+            n_list: 1024,
+            nprobe: 64,
+            training_sample_size: 256 * 1024,
+            kmeans_iters: 20,
+            seed: None,
+        }
+    }
+}
+
+impl IvfConfig {
+    /// Heuristic `n_list ≈ sqrt(N)` clamped to a reasonable range.
+    #[must_use]
+    pub fn for_dataset_size(n: usize) -> Self {
+        let n_list = (n as f64).sqrt().ceil() as usize;
+        let n_list = n_list.clamp(16, 65_536);
+        let nprobe = (n_list / 16).max(1);
+        Self {
+            n_list,
+            nprobe,
+            training_sample_size: (256 * n_list).min(n),
+            kmeans_iters: 20,
+            seed: None,
+        }
+    }
+}
+
 /// Vector metadata for GPU operations
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct VectorMetadata {
