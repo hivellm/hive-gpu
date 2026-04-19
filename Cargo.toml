@@ -33,9 +33,17 @@ objc2 = { version = "0.6", optional = true }
 
 [target.'cfg(any(target_os = "linux", target_os = "windows"))'.dependencies]
 cudarc = { version = "0.13", features = ["driver", "cublas", "cuda-12040", "dynamic-linking"], optional = true, default-features = false }
+# Intel / Vulkan Compute backend — ash loads the Vulkan loader dynamically
+# at runtime so the crate builds on hosts without the Vulkan SDK installed.
+ash = { version = "0.38", optional = true }
 
 [target.'cfg(target_os = "linux")'.dependencies]
 libloading = { version = "0.8", optional = true }
+
+# naga compiles the intel backend's WGSL compute shaders into SPIR-V at
+# build time. Pure-Rust dep — no CMake / C++ toolchain required.
+[target.'cfg(any(target_os = "linux", target_os = "windows"))'.build-dependencies]
+naga = { version = "23", features = ["wgsl-in", "spv-out"], optional = true }
 
 [features]
 default = ["metal-native"]
@@ -46,6 +54,10 @@ cuda = ["dep:cudarc"]
 # ROCm / HIP native implementation. Dynamic-link libamdhip64 / librocblas at
 # runtime via libloading so cargo build works on hosts without ROCm.
 rocm = ["dep:libloading"]
+# Intel GPU backend via Vulkan Compute (also runs on any Vulkan device in
+# fallback mode). Requires the Vulkan driver at runtime; WGSL shaders are
+# compiled to SPIR-V at build time via naga (build-dep only, pure-Rust).
+intel = ["dep:ash", "dep:naga"]
 
 [dev-dependencies]
 criterion = { version = "0.5", features = ["html_reports"] }

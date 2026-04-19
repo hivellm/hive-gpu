@@ -416,6 +416,9 @@ mod fallback_tests {
                 GpuBackendType::Rocm => {
                     println!("   ROCm backend available");
                 }
+                GpuBackendType::Intel => {
+                    println!("   Intel backend available");
+                }
                 GpuBackendType::Cpu => {
                     println!("   CPU backend available");
                 }

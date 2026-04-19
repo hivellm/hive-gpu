@@ -73,6 +73,19 @@ pub enum HiveGpuError {
     #[error("ROCm error: {0}")]
     RocmError(String),
 
+    /// Vulkan API failure — covers Intel, universal-Vulkan fallback, and
+    /// any host running a Vulkan-capable GPU through the `intel` feature.
+    #[error("Vulkan error: {0}")]
+    VulkanError(String),
+
+    /// Generic Intel backend error (loader, device selection).
+    #[error("Intel backend error: {0}")]
+    IntelError(String),
+
+    /// SPIR-V shader module creation or compilation failure.
+    #[error("SPIR-V compile error: {0}")]
+    SpirvCompileError(String),
+
     /// Internal error
     #[error("Internal error: {0}")]
     InternalError(String),

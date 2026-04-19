@@ -28,6 +28,9 @@ pub mod cuda;
 #[cfg(all(feature = "rocm", target_os = "linux"))]
 pub mod rocm;
 
+#[cfg(all(feature = "intel", any(target_os = "linux", target_os = "windows")))]
+pub mod intel;
+
 // Backend detection
 pub mod backends;
 

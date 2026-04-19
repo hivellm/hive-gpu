@@ -1,0 +1,32 @@
+#version 450
+// SGEMV-like compute shader: scores[i] = sum_d matrix[i, d] * query[d].
+// matrix is row-major (n_vectors, dimension).
+// One thread per output row; each thread reads one full row.
+//
+// Matches the shape of src/shaders/metal_hnsw.metal::sgemv_dot and the
+// implicit behaviour of cuBLAS/rocBLAS SGEMV with trans=T used by the
+// CUDA and ROCm backends.
+
+layout(local_size_x = 256, local_size_y = 1, local_size_z = 1) in;
+
+layout(std430, binding = 0) readonly buffer Matrix  { float matrix[]; };
+layout(std430, binding = 1) readonly buffer Query   { float query[];  };
+layout(std430, binding = 2) writeonly buffer Scores { float scores[]; };
+
+layout(push_constant) uniform PushConstants {
+    uint dimension;
+    uint n_vectors;
+} pc;
+
+void main() {
+    uint tid = gl_GlobalInvocationID.x;
+    if (tid >= pc.n_vectors) {
+        return;
+    }
+    uint base = tid * pc.dimension;
+    float sum = 0.0;
+    for (uint d = 0u; d < pc.dimension; ++d) {
+        sum += matrix[base + d] * query[d];
+    }
+    scores[tid] = sum;
+}
