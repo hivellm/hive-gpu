@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"enum":["GpuDistanceMetric"],"struct":["GpuCapabilities","GpuDeviceInfo","GpuMemoryStats","GpuSearchResult","GpuVector","HnswConfig","VectorMetadata"]};
+window.SIDEBAR_ITEMS = {"enum":["GpuDistanceMetric"],"struct":["GpuCapabilities","GpuDeviceInfo","GpuMemoryStats","GpuSearchResult","GpuVector","HnswConfig","IvfConfig","VectorMetadata"]};

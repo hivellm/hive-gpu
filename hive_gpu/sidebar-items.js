@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"constant":["VERSION"],"mod":["backends","cuda","error","monitoring","shaders","traits","types","utils"]};
+window.SIDEBAR_ITEMS = {"constant":["VERSION"],"mod":["backends","error","intel","monitoring","rocm","shaders","traits","types","utils"]};

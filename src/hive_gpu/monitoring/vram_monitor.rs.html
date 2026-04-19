@@ -106,7 +106,7 @@
 <a href=#106 id=106 data-nosnippet>106</a>        <span class="kw">let </span>stats = <span class="self">self</span>.get_vram_stats();
 <a href=#107 id=107 data-nosnippet>107</a>        <span class="kw">let </span><span class="kw-2">mut </span>report = String::new();
 <a href=#108 id=108 data-nosnippet>108</a>
-<a href=#109 id=109 data-nosnippet>109</a>        report.push_str(<span class="kw-2">&amp;</span><span class="macro">format!</span>(<span class="string">"VRAM Report:\n"</span>));
+<a href=#109 id=109 data-nosnippet>109</a>        report.push_str(<span class="string">"VRAM Report:\n"</span>);
 <a href=#110 id=110 data-nosnippet>110</a>        report.push_str(<span class="kw-2">&amp;</span><span class="macro">format!</span>(
 <a href=#111 id=111 data-nosnippet>111</a>            <span class="string">"  Total VRAM: {:.2} MB\n"</span>,
 <a href=#112 id=112 data-nosnippet>112</a>            stats.total_vram <span class="kw">as </span>f64 / <span class="number">1024.0 </span>/ <span class="number">1024.0

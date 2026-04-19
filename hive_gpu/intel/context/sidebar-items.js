@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"constant":["INTEL_VENDOR_ID","UNIVERSAL_ENV"],"struct":["IntelContext"]};
