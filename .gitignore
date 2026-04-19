@@ -18,3 +18,56 @@ Thumbs.db
 # Temporary files
 *.tmp
 *.temp
+
+# Rulebook - ignore runtime data, keep specs and tasks
+/.rulebook/*
+!/.rulebook/specs/
+!/.rulebook/tasks/
+!/.rulebook/tasks/**/*.md
+!/.rulebook/rulebook.json
+
+# Patterns added by @hivellm/rulebook
+# Added at: 2026-04-19T06:05:08.875Z
+
+*$py.class
+**/*.rs.bk
+*.egg
+*.egg-info/
+*.pdb
+*.py[cod]
+*.so
+*~
+.Python
+.cache/
+.eggs/
+.env
+.env.*.local
+.env.local
+.installed.cfg
+.mypy_cache/
+.pytest_cache/
+.ruff_cache/
+.venv/
+ENV/
+__pycache__/
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+env/
+lib/
+lib64/
+logs/
+parts/
+sdist/
+temp/
+tmp/
+var/
+venv/
+wheels/
+
+CLAUDE.local.md
+.rulebook/backup/
+.rulebook/handoff/_pending.md
+.rulebook/handoff/.urgent
