@@ -19,11 +19,51 @@ All benchmarks run on:
 - **OS**: macOS 14.0+
 - **Backend**: Metal Native (pure native implementation)
 
-**Linux (CUDA)** - Planned
-- **Device**: NVIDIA RTX 4090
-- **VRAM**: 24GB GDDR6X
-- **OS**: Ubuntu 22.04 LTS
-- **CUDA**: 12.0+
+**Windows (CUDA)** — Measured on 2026-04-19
+- **Device**: NVIDIA GeForce RTX 4090
+- **VRAM**: 24 GB GDDR6X
+- **Driver**: 591.59 (CUDA 13.1 runtime)
+- **OS**: Windows 11
+- **Backend**: `cuda` feature — cudarc 0.13 driver API + cuBLAS SGEMV
+
+#### CUDA backend — v0.1.10 baseline
+
+Measured with `cargo bench --features cuda --bench cuda_ops`. CPU reference is
+a naïve scalar dot-product loop in Rust (not SIMD-vectorized), meaning these
+numbers flatter the GPU; expect the GPU speedup to narrow against a tuned
+CPU baseline.
+
+**`add_vectors` throughput (128-dim f32)**
+
+| Batch size | Wall-clock | Throughput |
+|-----------:|-----------:|-----------:|
+| 1 000      | 431 µs     | 2.32 M elements/s |
+| 10 000     | 7.10 ms    | 1.41 M elements/s |
+
+**Search latency (DotProduct, 128-dim f32, top-10)**
+
+| N       | GPU (cuBLAS SGEMV) | CPU naïve reference | GPU speedup |
+|--------:|-------------------:|--------------------:|------------:|
+|   1 000 |             124 µs |               63 µs |       0.51× |
+|  10 000 |             287 µs |              690 µs |       2.40× |
+| 100 000 |            4.01 ms |             13.04 ms |       3.25× |
+
+Interpretation:
+- For 1 K vectors the SGEMV launch + memcpy overhead dominates useful work
+  and the CPU wins. Keep CPU fallback for small N.
+- From 10 K onwards the GPU wins and the gap grows roughly linearly with N.
+- The `add_vectors` path is currently bottlenecked by a double copy
+  (`htod_copy` into a staging `CudaSlice` followed by `memcpy_dtod_sync` into
+  the target buffer). A single direct upload is a natural v2 optimization.
+
+**Test suite summary (17 tests, all passing)**
+
+- `tests/cuda_smoke.rs` — 4 tests covering context creation, Cosine & Euclidean
+  search correctness, and buffer growth preserving data across a resize.
+- `tests/cuda_device_info.rs` — 5 tests validating the device info API fields
+  against live `nvidia-smi` output.
+- `tests/cuda_vector_ops.rs` — 8 tests covering add/remove/clear/search and
+  numerical agreement vs a CPU reference within 1e-3.
 
 ### Vector Operations
 

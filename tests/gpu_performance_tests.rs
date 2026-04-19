@@ -7,6 +7,7 @@
 //! - Memory bandwidth
 //! - Scalability tests
 
+#[cfg(all(target_os = "macos", feature = "metal-native"))]
 use std::time::Instant;
 
 #[cfg(all(target_os = "macos", feature = "metal-native"))]

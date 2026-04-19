@@ -51,6 +51,11 @@ name = "gpu_operations"
 harness = false
 required-features = ["metal-native"]
 
+[[bench]]
+name = "cuda_ops"
+harness = false
+required-features = ["cuda"]
+
 [[example]]
 name = "metal_basic"
 required-features = ["metal-native"]
