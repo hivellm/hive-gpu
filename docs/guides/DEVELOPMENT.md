@@ -212,7 +212,7 @@ hive-gpu/
 ├── README.md               # Project overview
 ├── CHANGELOG.md            # Version history
 ├── AGENTS.md              # AI assistant rules
-├── LICENSE                # MIT license
+├── LICENSE                # Apache 2.0 license
 ├── CONTRIBUTING.md        # Contribution guidelines
 ├── CODE_OF_CONDUCT.md    # Code of conduct
 ├── SECURITY.md           # Security policy

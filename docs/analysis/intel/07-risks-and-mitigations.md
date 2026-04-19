@@ -13,7 +13,7 @@
 | Vulkan validation layer warnings drown the signal | Low | Low | Enable layers only in `debug_assertions`; scrub noise before shipping |
 | Descriptor-set management memory leak | Medium | High | Use `vk-mem` (Vulkan Memory Allocator) + audit with `VK_EXT_validation_features` |
 | Users confuse "Intel backend" with "runs on Intel CPUs" | Medium | Low | README clarifies: GPU backend only; CPU users get the CPU fallback |
-| Licensing of any embedded SPIR-V derived from Khronos samples | Low | Low | Write kernels from scratch; avoid Khronos sample code unless MIT-compatible |
+| Licensing of any embedded SPIR-V derived from Khronos samples | Low | Low | Write kernels from scratch; avoid Khronos sample code unless Apache-2.0-compatible |
 | `ash` API churn on minor version bumps | Low | Low | Pin to a specific minor version; upgrade behind a test suite |
 
 ## Watch list beyond v1

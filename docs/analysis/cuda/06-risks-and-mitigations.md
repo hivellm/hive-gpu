@@ -11,7 +11,7 @@
 | Memory fragmentation after many expand/shrink cycles | Low | Medium | Add "compact" path that rebuilds buffer on idle |
 | `cudaMemcpyAsync` without matching `cudaStreamSynchronize` races | Medium | High | Code review checklist; `Drop` impl forces sync |
 | Running example without `cuda` feature silently misleads users | High | Low | Compile-time `#[cfg(feature = "cuda")]` gate with a clear `compile_error!` message in `examples/cuda_basic.rs` |
-| Licensing of embedded PTX derived from open kernels | Low | Low | All custom kernels shipped under MIT matching the crate |
+| Licensing of embedded PTX derived from open kernels | Low | Low | All custom kernels shipped under Apache 2.0 matching the crate |
 
 ## Watch list beyond v1
 

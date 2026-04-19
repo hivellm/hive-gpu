@@ -8,7 +8,7 @@
 | Numerical divergence rocBLAS ↔ cuBLAS | Medium | Low | `1e-4` tolerance in cross-backend tests |
 | Windows ROCm support is immature | Medium | Low | Mark as `experimental` on Windows until gfx1100 SDK stabilizes |
 | Lack of AMD hardware for dev / CI | High | High | Cloud: GCP / Azure with MI300 or Hetzner with RX 7900; or contributors with AMD hardware |
-| License constraints on `.hip` kernels | Low | Low | MIT already covers; validate restrictions in ROCm headers (Apache / MIT) |
+| License constraints on `.hip` kernels | Low | Low | Apache 2.0 already covers; validate restrictions in ROCm headers (Apache / MIT) |
 | Driver version skew (ROCm 5.x vs 6.x) | Medium | Medium | Pin minimum ROCm 5.6; test against both 5.x and 6.x in nightly |
 | `Drop` order races on context shutdown | Medium | High | Strict sequence rocBLAS handle → stream → device; enforce with `impl Drop` and a guard struct |
 | Payload map divergence between backends | Medium | Low | Extract shared helper after ROCm lands (not before, to avoid premature abstraction) |

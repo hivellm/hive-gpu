@@ -4,7 +4,7 @@
 
 [![Crates.io](https://img.shields.io/crates/v/hive-gpu.svg)](https://crates.io/crates/hive-gpu)
 [![Documentation](https://docs.rs/hive-gpu/badge.svg)](https://docs.rs/hive-gpu)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![License: Apache 2.0](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 [![Build Status](https://github.com/hivellm/hive-gpu/workflows/CI/badge.svg)](https://github.com/hivellm/hive-gpu/actions)
 
 Four GPU backends, all feature-gated and target-gated so the crate builds
@@ -295,4 +295,4 @@ Detailed roadmap in [`docs/ROADMAP.md`](docs/ROADMAP.md).
 
 ## License
 
-MIT — see [`LICENSE`](LICENSE).
+Apache 2.0 — see [`LICENSE`](LICENSE).
