@@ -110,13 +110,19 @@ fn is_metal_available() -> bool {
 /// enumerable — never panics.
 #[cfg(all(feature = "cuda", any(target_os = "linux", target_os = "windows")))]
 fn is_cuda_available() -> bool {
-    use cudarc::driver::result;
-    match result::init() {
-        Ok(()) => result::device::get_count()
-            .map(|count| count > 0)
-            .unwrap_or(false),
-        Err(_) => false,
-    }
+    // cudarc's dynamic-linking panics when libcuda.so is missing (hosts
+    // with the toolkit but no driver). catch_unwind so detection on such
+    // hosts returns false cleanly instead of aborting the process.
+    std::panic::catch_unwind(|| {
+        use cudarc::driver::result;
+        match result::init() {
+            Ok(()) => result::device::get_count()
+                .map(|count| count > 0)
+                .unwrap_or(false),
+            Err(_) => false,
+        }
+    })
+    .unwrap_or(false)
 }
 
 /// Check if ROCm / HIP is available on the current system.

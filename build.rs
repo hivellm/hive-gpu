@@ -15,11 +15,14 @@ fn main() {
         println!("cargo:rerun-if-env-changed=CUDA_HOME");
     }
 
-    #[cfg(feature = "intel")]
+    // The intel backend is only supported on Linux / Windows, and the
+    // `naga` build-dep is target-gated accordingly. On other targets the
+    // feature activation is a no-op.
+    #[cfg(all(feature = "intel", any(target_os = "linux", target_os = "windows")))]
     compile_intel_shaders();
 }
 
-#[cfg(feature = "intel")]
+#[cfg(all(feature = "intel", any(target_os = "linux", target_os = "windows")))]
 fn compile_intel_shaders() {
     use std::path::Path;
 

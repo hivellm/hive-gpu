@@ -193,7 +193,7 @@ impl HipLib {
         macro_rules! sym {
             ($lib:ident, $name:expr) => {
                 unsafe {
-                    $lib.get::<unsafe extern "C" fn()>($name.as_bytes())
+                    $lib.get::<unsafe extern "C" fn()>($name)
                         .ok()?
                         .into_raw()
                         .into_raw()

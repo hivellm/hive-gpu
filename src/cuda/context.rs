@@ -66,10 +66,18 @@ impl CudaContext {
 
     /// Non-failing availability probe used by the backend detector.
     pub fn is_available() -> bool {
-        matches!(cuda_result::init(), Ok(()))
-            && cuda_result::device::get_count()
-                .map(|c| c > 0)
-                .unwrap_or(false)
+        // cudarc 0.13's `dynamic-linking` feature loads libcuda.so lazily and
+        // *panics* if the loader cannot resolve the library — e.g. on a
+        // driver-less CI container that ships only the CUDA toolkit. Wrap the
+        // first probe in `catch_unwind` so our documented contract ("never
+        // panics") is honoured regardless of the host environment.
+        std::panic::catch_unwind(|| {
+            matches!(cuda_result::init(), Ok(()))
+                && cuda_result::device::get_count()
+                    .map(|c| c > 0)
+                    .unwrap_or(false)
+        })
+        .unwrap_or(false)
     }
 
     /// Borrow the underlying `CudaDevice` for memory operations.
