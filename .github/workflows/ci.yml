@@ -74,8 +74,12 @@ jobs:
       - name: Check formatting
         run: cargo fmt --all -- --check
 
-      - name: Run clippy
-        run: cargo clippy --all-targets --all-features -- -D warnings
+      # The `cuda` feature needs the CUDA toolkit (cuda.h) at build time and
+      # is covered by the dedicated `CUDA Build` workflow. Here we lint with
+      # the feature set that does not need a vendor toolchain: rocm uses
+      # libloading, intel uses ash + naga (both pure Rust).
+      - name: Run clippy (non-cuda feature set)
+        run: cargo clippy --all-targets --features rocm,intel -- -D warnings
 
       - name: Run tests (CPU only)
         run: cargo test --lib --bins --tests --verbose
@@ -88,12 +92,8 @@ jobs:
         if: matrix.os == 'macos-latest'
         run: cargo test --features metal-native --verbose
 
-      # - name: Run tests (CUDA on Linux)
-      #   if: matrix.os == 'ubuntu-latest'
-      #   run: cargo test --features cuda --verbose
-
-      # - name: Run tests (wgpu)
-      #   run: cargo test --features wgpu --verbose
+      # CUDA test coverage lives in .github/workflows/cuda-build.yml, which
+      # runs inside an nvidia/cuda container so `cuda.h` is available.
 
       - name: Build examples
         run: cargo build --examples --verbose
@@ -101,7 +101,11 @@ jobs:
       - name: Run benchmarks (if available)
         run: cargo bench --verbose || echo "No benchmarks available"
 
-  # Build and test with different feature combinations
+  # Build and test with different feature combinations. The `cuda` feature
+  # needs the CUDA toolkit at build time and lives in cuda-build.yml, so it
+  # is intentionally not in this matrix. `metal-native` is target-gated to
+  # macOS and contributes nothing on ubuntu; it is kept here only to exercise
+  # the feature-flag machinery.
   feature-test:
     name: Feature Test - ${{ matrix.name }}
     runs-on: ubuntu-latest
@@ -112,10 +116,12 @@ jobs:
             features: ""
           - name: "metal-native"
             features: "metal-native"
-          - name: "cuda"
-            features: "cuda"
-          - name: "metal-cuda"
-            features: "metal-native,cuda"
+          - name: "rocm"
+            features: "rocm"
+          - name: "intel"
+            features: "intel"
+          - name: "rocm-intel"
+            features: "rocm,intel"
 
     steps:
       - name: Checkout code
@@ -197,8 +203,10 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-cargo-
 
+      # `cuda` needs cuda.h at build time and is documented in cuda-build.yml.
+      # Every other feature builds cleanly on a stock runner.
       - name: Build documentation
-        run: cargo doc --no-deps --all-features
+        run: cargo doc --no-deps --features metal-native,rocm,intel
 
       - name: Deploy documentation
         uses: peaceiris/actions-gh-pages@v3

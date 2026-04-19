@@ -60,4 +60,9 @@ jobs:
         run: cargo fmt --all --check
 
       - name: cargo test --features cuda (host without GPU — tests are no-ops)
-        run: cargo test --features cuda --test cuda_smoke --test cuda_device_info --test cuda_vector_ops
+        run: |
+          cargo test --features cuda \
+            --test cuda_smoke \
+            --test cuda_device_info \
+            --test cuda_vector_ops \
+            --test cuda_ivf

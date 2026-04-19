@@ -2,9 +2,9 @@
 //!
 //! Real Vulkan instance + compute device + queue + pre-compiled compute
 //! pipelines for the `sgemv_dot` and `sgemm_dot` kernels that the vector
-//! storage and IVF index dispatch. Mirrors the shape of
-//! [`crate::cuda::CudaContext`] and [`crate::rocm::RocmContext`] so
-//! downstream code stays portable.
+//! storage and IVF index dispatch. Mirrors the shape of `CudaContext` and
+//! `RocmContext` (see the `cuda` / `rocm` features) so downstream code
+//! stays portable across backends.
 //!
 //! Target gating: this module only builds with `feature = "intel"` and
 //! `target_os` in `{linux, windows}`. macOS is intentionally excluded —

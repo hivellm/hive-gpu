@@ -1,8 +1,8 @@
 //! # Intel (Vulkan) IVF Index
 //!
-//! Mirror of [`crate::cuda::CudaIvfIndex`] / [`crate::rocm::RocmIvfIndex`]
-//! on the Vulkan Compute backend. Uses the pre-built `sgemv_dot` and
-//! `sgemm_dot` compute pipelines for every GPU-side dot-product pass;
+//! Mirror of `CudaIvfIndex` / `RocmIvfIndex` (see the `cuda` / `rocm`
+//! features) on the Vulkan Compute backend. Uses the pre-built `sgemv_dot`
+//! and `sgemm_dot` compute pipelines for every GPU-side dot-product pass;
 //! argmin and top-K run on the host, matching the CUDA/ROCm/Metal scope
 //! of v1.
 //!

@@ -33,12 +33,16 @@ jobs:
     - name: Check code formatting
       run: cargo +nightly fmt --all -- --check
     
-    - name: Check cargo clippy warnings
+    - name: Check cargo clippy warnings (default features)
       run: cargo clippy --workspace -- -D warnings
-    
-    - name: Check cargo clippy warnings for all targets
+
+    - name: Check cargo clippy warnings for all targets (default features)
       run: cargo clippy --workspace --all-targets -- -D warnings
-    
-    - name: Check cargo clippy warnings for all targets and features
-      run: cargo clippy --workspace --all-targets --all-features -- -D warnings
+
+    # cuda feature needs the CUDA toolkit (cuda.h) at build time; that
+    # combination is covered by the dedicated `CUDA Build` workflow.
+    # Everything else — rocm (libloading only) and intel (ash + naga, both
+    # pure Rust) — builds cleanly on a stock ubuntu runner.
+    - name: Check cargo clippy for rocm + intel feature set
+      run: cargo clippy --workspace --all-targets --features rocm,intel -- -D warnings
 

@@ -720,7 +720,7 @@ fn dispatch_sgemm_dot(
     let mut out = vec![0f32; out_len];
     // SAFETY: out_buf allocated with `out_len * 4` bytes host-visible.
     unsafe {
-        let src = out_buf.contents() as *const f32;
+        let src = out_buf.contents().as_ptr() as *const f32;
         std::ptr::copy_nonoverlapping(src, out.as_mut_ptr(), out_len);
     }
     Ok(out)

@@ -517,7 +517,7 @@ pub(crate) fn run_sgemv_dot(
     // SAFETY: scores_buffer has `scores_bytes` bytes of host-visible
     // memory; we copy exactly that many bytes into a matching f32 slice.
     unsafe {
-        let src = scores_buffer.contents() as *const f32;
+        let src = scores_buffer.contents().as_ptr() as *const f32;
         std::ptr::copy_nonoverlapping(src, out.as_mut_ptr(), n_vectors);
     }
     Ok(out)
