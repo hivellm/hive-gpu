@@ -8,9 +8,11 @@
 //! - Distance metrics (Euclidean, Manhattan)
 //! - Batch operations
 
+#[cfg(all(target_os = "macos", feature = "metal-native"))]
 use std::collections::HashMap;
 
 /// Helper function to create test vectors
+#[cfg(all(target_os = "macos", feature = "metal-native"))]
 fn create_test_vectors(count: usize, dimension: usize) -> Vec<hive_gpu::types::GpuVector> {
     (0..count)
         .map(|i| {

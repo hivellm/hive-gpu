@@ -1,0 +1,63 @@
+name: CUDA Build
+
+on:
+  push:
+    branches: [master, main, develop]
+    paths:
+      - "src/cuda/**"
+      - "src/backends/**"
+      - "src/error.rs"
+      - "src/lib.rs"
+      - "tests/cuda_*.rs"
+      - "benches/cuda_ops.rs"
+      - "Cargo.toml"
+      - "Cargo.lock"
+      - "build.rs"
+      - ".github/workflows/cuda-build.yml"
+  pull_request:
+    branches: ["**"]
+    paths:
+      - "src/cuda/**"
+      - "src/backends/**"
+      - "src/error.rs"
+      - "src/lib.rs"
+      - "tests/cuda_*.rs"
+      - "benches/cuda_ops.rs"
+      - "Cargo.toml"
+      - "Cargo.lock"
+      - "build.rs"
+      - ".github/workflows/cuda-build.yml"
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  cuda-build:
+    name: cargo check + clippy (--features cuda)
+    runs-on: ubuntu-latest
+    container:
+      image: nvidia/cuda:12.4.1-devel-ubuntu22.04
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Install build tools
+        run: |
+          apt-get update
+          apt-get install -y --no-install-recommends \
+            build-essential curl pkg-config libssl-dev ca-certificates
+          curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --default-toolchain stable
+          echo "$HOME/.cargo/bin" >> $GITHUB_PATH
+
+      - uses: Swatinem/rust-cache@v2
+
+      - name: cargo check --features cuda
+        run: cargo check --features cuda --lib --tests --benches
+
+      - name: cargo clippy --features cuda
+        run: cargo clippy --features cuda --lib --tests --benches --no-deps -- -D warnings
+
+      - name: cargo fmt --check
+        run: cargo fmt --all --check
+
+      - name: cargo test --features cuda (host without GPU — tests are no-ops)
+        run: cargo test --features cuda --test cuda_smoke --test cuda_device_info --test cuda_vector_ops

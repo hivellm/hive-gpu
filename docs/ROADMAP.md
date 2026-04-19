@@ -1,554 +1,366 @@
-# hive-gpu - Roadmap
+# hive-gpu — Roadmap
 
-## Overview
+**Last updated:** 2026-04-19
 
-This document outlines the development roadmap for hive-gpu, a high-performance GPU acceleration library for vector operations. The project is structured in phases with clear milestones and deliverables.
+## Current status
 
-## Current Status
+- **Version:** 0.2.0 (released 2026-04-19)
+- **Backends shipping:**
+  - **Metal** on macOS / Apple Silicon — stable since 0.1.x
+  - **CUDA** on Linux / Windows / NVIDIA (Volta+ / sm_70+) — new in 0.2.0,
+    validated end-to-end on RTX 4090
+- **Backends designed but not implemented:**
+  - **ROCm** for AMD — analysis at [`docs/analysis/gcn/`](analysis/gcn/),
+    task at [`.rulebook/tasks/phase3b_add-rocm-backend/`](../.rulebook/tasks/phase3b_add-rocm-backend/)
+  - **Intel** (Arc / Battlemage) via Vulkan Compute — analysis at
+    [`docs/analysis/intel/`](analysis/intel/), task at
+    [`.rulebook/tasks/phase3c_add-intel-backend/`](../.rulebook/tasks/phase3c_add-intel-backend/)
+- **Production readiness:** 0.2.x is **beta**. API surface stable;
+  0.3-series focuses on HNSW, quantization, and additional vendors.
 
-- **Version**: 0.1.6
-- **Test Coverage**: ~70% (Target: 95%+)
-- **Backends**: Metal Native (macOS) - Stable
-- **Production Ready**: No (Alpha stage)
+## Market coverage
 
-## Phase 1: Foundation (v0.1.x) - CURRENT ✅
+| Vendor  | Backend | Status  | Share of ML/AI GPU market |
+|---------|---------|---------|--------------------------:|
+| Apple   | Metal   | ✅ shipping | ~5 % (Apple Silicon)  |
+| NVIDIA  | CUDA    | ✅ shipping | ~70 %                 |
+| AMD     | ROCm    | 📝 designed | ~15 %                 |
+| Intel   | Vulkan  | 📝 designed | <1 % (today)          |
+| Any     | CPU     | ✅ fallback | universal             |
 
-**Status**: 80% Complete
-
-### Completed Features ✅
-
-- [x] Core API design and trait definitions
-- [x] Metal Native backend implementation (Apple Silicon)
-- [x] GPU vector storage with basic operations
-- [x] Cosine similarity, Euclidean distance, Dot Product metrics
-- [x] VRAM-only storage architecture
-- [x] Basic HNSW graph structure
-- [x] Buffer pooling for Metal
-- [x] VRAM monitoring utilities
-- [x] Error handling with thiserror
-- [x] Basic documentation
-- [x] Example implementations
-- [x] Initial benchmarks
-
-### In Progress 🚧
-
-- [ ] Comprehensive test suite (Target: 95%+ coverage)
-  - [x] Unit tests for core types
-  - [x] Unit tests for Metal context
-  - [ ] Integration tests for end-to-end workflows
-  - [ ] Edge case testing
-  - [ ] Error path testing
-  
-- [ ] HNSW graph implementation completion
-  - [x] Basic graph structure
-  - [ ] GPU-accelerated graph construction
-  - [ ] GPU-accelerated graph search
-  - [ ] Layer-wise optimization
-  
-- [ ] Documentation improvements
-  - [x] README.md
-  - [x] ARCHITECTURE.md
-  - [x] DEVELOPMENT.md
-  - [x] API documentation (doc comments)
-  - [ ] Tutorial guides
-  - [ ] Performance tuning guide
-
-### Remaining Work (Phase 1)
-
-- [ ] Metal shader optimization
-- [ ] Advanced buffer management
-- [ ] Performance profiling and optimization
-- [ ] CI/CD pipeline setup
-- [ ] Code coverage reporting
-- [ ] Security audit
-
-**Target Completion**: 2025-02-15
+Metal + CUDA = **~75 % coverage today**; adding ROCm reaches ~90 %.
 
 ---
 
-## Phase 2: Device Info API (v0.1.7) - PLANNED 🔥 CRITICAL
+## ✅ Phase 1 — Foundation (v0.1.x)
 
-**Status**: 0% Complete  
-**Priority**: 🔥 CRITICAL  
-**Estimated Time**: 1-2 days  
-**Impact**: High (foundational for all backends)
+Completed across the 0.1.x series (2024–2025).
 
-### Goals
+- [x] Core traits and types (`GpuBackend`, `GpuContext`, `GpuVectorStorage`)
+- [x] Metal Native backend (Apple Silicon) via `objc2-metal`
+- [x] VRAM-only vector storage with adaptive buffer growth
+- [x] Distance metrics: Cosine, Euclidean, DotProduct
+- [x] Error handling via `thiserror`
+- [x] Migration from discontinued `metal-rs` to `objc2-metal` (0.1.8)
+- [x] 72-test integration suite on Metal (0.1.9)
+- [x] Device Info API: `GpuDeviceInfo` struct, `device_info()` on `GpuContext`,
+      helpers (`vram_usage_percent`, `has_available_vram`) — 0.1.7
 
-Provide comprehensive GPU device information API that works across all backends. This is a prerequisite for CUDA and ROCm implementations.
+**Open items carried forward into Phase 3:**
 
-### Features
-
-#### Device Information API
-
-- [ ] Define `GpuDeviceInfo` struct with comprehensive fields
-  - [ ] Device name and backend type
-  - [ ] VRAM total, available, and used (bytes)
-  - [ ] Driver version string
-  - [ ] Compute capability (CUDA) or equivalent
-  - [ ] Hardware limits (max threads, shared memory)
-  - [ ] Device ID and PCI bus ID
-- [ ] Add `device_info()` method to `GpuContext` trait
-- [ ] Add helper methods (`vram_usage_percent()`, `has_available_vram()`)
-- [ ] Implement for Metal backend
-  - [ ] Query Metal device properties
-  - [ ] Get macOS version as driver version
-  - [ ] Report hardware capabilities
-- [ ] Add comprehensive tests
-- [ ] Update documentation
-
-**Target Completion**: 2025-01-15  
-**Dependencies**: None
+- [ ] GPU-accelerated HNSW construction (Metal has partial, CUDA is brute-force only)
+- [ ] Product / Scalar quantization
 
 ---
 
-## Phase 3: Multi-Backend Support (v0.2.0) - PLANNED 🔥 CRITICAL
+## ✅ Phase 2 — CUDA Backend (v0.2.0) — SHIPPED
 
-**Status**: 0% Complete  
-**Priority**: 🔥 CRITICAL  
-**Estimated Time**: 4-6 weeks  
-**Impact**: Critical (70%+ market coverage)
+Released 2026-04-19.
 
-### Goals
+- [x] `cudarc 0.13` integration with `dynamic-linking` (no CUDA Toolkit
+      required at build time on end-user machines)
+- [x] `CudaContext` with live driver queries: compute capability,
+      total/free VRAM, driver version, PCI bus id
+- [x] `CudaVectorStorage` with batched `htod_copy`, adaptive
+      device-to-device reallocation, soft-delete, host-cached norms
+- [x] GPU search via cuBLAS SGEMV (DotProduct / Cosine / Euclidean)
+- [x] 17 integration tests (`cuda_smoke`, `cuda_device_info`,
+      `cuda_vector_ops`) passing on RTX 4090
+- [x] Criterion benchmark `benches/cuda_ops.rs` comparing GPU vs CPU
+- [x] GitHub Actions workflow against `nvidia/cuda:12.4.1-devel-ubuntu22.04`
+- [x] `HiveGpuError::{CudaError, CublasError}` variants
+- [x] `#![allow(warnings)]` removed project-wide; clippy `-D warnings`
+      enforced on all feature combinations
 
-Expand GPU backend support to CUDA (NVIDIA) and ROCm (AMD), enabling broader hardware compatibility across all major GPU vendors.
+**Validated performance on RTX 4090 (DotProduct, 128-dim, top-10):**
 
-### Sub-Phase 3.1: CUDA Backend (v0.2.0) 🔥 HIGHEST PRIORITY
+| N       | GPU    | CPU baseline | Speedup |
+|--------:|-------:|-------------:|--------:|
+|   1 000 | 124 µs | 63 µs        | 0.5×    |
+|  10 000 | 287 µs | 690 µs       | 2.4×    |
+| 100 000 | 4.0 ms | 13.0 ms      | 3.25×   |
 
-**Estimated Time**: 1-2 weeks  
-**Market Impact**: 70% of production servers
-
-#### CUDA Backend Features
-
-- [ ] Project setup and dependencies
-  - [ ] Add CUDA runtime and driver system crates
-  - [ ] Add cuBLAS system bindings
-  - [ ] Create build.rs for CUDA kernel compilation
-  - [ ] Configure multi-architecture compilation (sm_70-sm_90)
-- [ ] CUDA Context implementation
-  - [ ] Device detection and selection
-  - [ ] Stream creation and management
-  - [ ] cuBLAS handle initialization
-  - [ ] Device info implementation
-  - [ ] Error handling and safety wrappers
-- [ ] CUDA Vector Storage
-  - [ ] GPU memory allocation and management
-  - [ ] Vector add/remove/update operations
-  - [ ] Batch operations with async transfer
-  - [ ] Dynamic capacity management
-- [ ] CUDA Kernels (.cu files)
-  - [ ] L2 (Euclidean) distance kernel
-  - [ ] Cosine similarity via cuBLAS SGEMV
-  - [ ] Dot product via cuBLAS
-  - [ ] Kernel optimization for different SM architectures
-- [ ] CUDA Testing
-  - [ ] Unit tests for context and storage
-  - [ ] Integration tests for end-to-end workflows
-  - [ ] Performance benchmarks
-  - [ ] Multi-GPU testing (if available)
-- [ ] Documentation
-  - [ ] CUDA setup instructions
-  - [ ] API documentation
-  - [ ] Performance tuning guide
-  - [ ] Troubleshooting guide
-
-**Target Completion**: 2025-02-28
-
-### Sub-Phase 3.2: ROCm Backend (v0.2.1) ⚡ HIGH PRIORITY
-
-**Estimated Time**: 1-2 weeks  
-**Market Impact**: 15% additional coverage
-
-#### ROCm Backend Features
-
-- [ ] Project setup and dependencies
-  - [ ] Add HIP runtime system crates
-  - [ ] Add rocBLAS system bindings
-  - [ ] Configure build.rs for HIP compilation
-  - [ ] Support AMD GPU architectures (gfx900+)
-- [ ] ROCm Context implementation
-  - [ ] HIP device detection and selection
-  - [ ] HIP stream creation
-  - [ ] rocBLAS handle initialization
-  - [ ] Device info implementation
-- [ ] ROCm Vector Storage
-  - [ ] HIP memory allocation
-  - [ ] Vector operations via HIP
-  - [ ] Batch operations
-- [ ] HIP Kernels (.hip files)
-  - [ ] Distance computation kernels
-  - [ ] HNSW operation kernels
-  - [ ] Wavefront optimization for AMD GPUs
-- [ ] ROCm Testing
-  - [ ] Unit and integration tests
-  - [ ] Performance benchmarks vs CUDA
-  - [ ] AMD-specific optimization validation
-- [ ] Documentation
-  - [ ] ROCm setup guide
-  - [ ] API documentation
-  - [ ] AMD GPU compatibility matrix
-
-**Target Completion**: 2025-03-31
-
-#### Backend Abstraction
-
-- [ ] Unified backend selection API
-- [ ] Backend auto-detection improvements
-- [ ] Cross-backend testing suite
-- [ ] Performance comparison benchmarks
-
-### Market Coverage Analysis
-
-**Current State (Phase 1):**
-- Metal only: ~5% of production servers
-
-**After Device Info API (Phase 2):**
-- Better visibility and diagnostics: ~5% coverage
-- Foundation for future backends
-
-**After CUDA (Phase 3.1):**
-- Metal + CUDA: ~75% of production servers
-- NVIDIA dominates ML/AI server market
-
-**After ROCm (Phase 3.2):**
-- Metal + CUDA + ROCm: ~90% of production servers
-- Comprehensive GPU vendor coverage
-- [ ] Performance benchmarking across backends
-- [ ] Backend-specific optimization flags
-
-#### Testing & Validation
-
-- [ ] CUDA backend test suite
-- [ ] ROCm backend test suite
-- [ ] AMD GPU-specific optimizations
-- [ ] MI200/MI300 series support
-- [ ] Cross-backend compatibility tests
-- [ ] Performance regression tests
-- [ ] Multi-GPU testing
-
-**Target Completion**: 2025-04-30
+See [`benchmarks/PERFORMANCE.md`](benchmarks/PERFORMANCE.md) for full numbers.
 
 ---
 
+## 📝 Phase 3 — ROCm Backend (v0.3.0) — PLANNED
+
+**Priority:** ⚡ High · **Est. effort:** 16–21 dev-days after CUDA
+stabilises · **Task:** [`phase3b_add-rocm-backend`](../.rulebook/tasks/phase3b_add-rocm-backend/)
+· **Analysis:** [`docs/analysis/gcn/`](analysis/gcn/)
+
+### Deliverables
+
+- [ ] `src/rocm/` module behind a `rocm` Cargo feature (Linux / Windows
+      target-gated)
+- [ ] HIP bindings via `bindgen` against `$ROCM_PATH/include/hip/` plus
+      `rocblas-sys` for BLAS routines
+- [ ] `RocmContext` with HIP stream + rocBLAS handle; device info from
+      `hipGetDeviceProperties` exposing the real gfx architecture string
+      (gfx900 through gfx1100+)
+- [ ] `RocmVectorStorage` mirroring the CUDA shape: `hipMalloc`,
+      `hipMemcpyAsync`, D2D reallocation on growth
+- [ ] `src/rocm/kernels.hip` for L2 distance (Cosine and DotProduct route
+      through rocBLAS SGEMV), compiled multi-arch via `hipcc
+      --offload-arch=gfx900,gfx906,gfx908,gfx90a,gfx1030,gfx1100`
+- [ ] Runtime wavefront-size awareness (32 on RDNA, 64 on CDNA)
+- [ ] Cross-backend consistency tests Metal × CUDA × ROCm within 1e-4
+- [ ] CI job using `rocm/dev-ubuntu-22.04:6.0` container for build
+      verification
+- [ ] Examples and `docs/guides/ROCM_SETUP.md`
+
+### Dependencies
+
+- Hardware access: gfx1030 (RX 6000 / RDNA2) minimum for dev, ideally also
+  gfx90a (MI200 / CDNA2) for wavefront-64 validation before release.
+- Stable CUDA backend to mirror its storage / search shape.
+
 ---
 
-## Phase 4: Advanced Features (v0.3.0) - PLANNED ⚡
+## 📝 Phase 4 — Intel Backend (v0.3.x) — PLANNED
 
-**Status**: 0% Complete  
-**Priority**: ⚡ MEDIUM  
-**Estimated Time**: 3-4 months  
-**Impact**: Medium (performance and features)
+**Priority:** 📦 Low · **Est. effort:** 22–28 dev-days · **Task:**
+[`phase3c_add-intel-backend`](../.rulebook/tasks/phase3c_add-intel-backend/)
+· **Analysis:** [`docs/analysis/intel/`](analysis/intel/)
 
-### Goals
+### Deliverables
 
-Implement advanced vector search features, optimizations, and production-grade reliability after core backends are stable.
+- [ ] `src/intel/` module behind an `intel` Cargo feature
+- [ ] Vulkan Compute via `ash 0.37+`, physical-device filter by
+      `vendorID == 0x8086`
+- [ ] GLSL compute shaders (or WGSL via Naga) compiled to SPIR-V in
+      `build.rs` with `shaderc`, embedded via `include_bytes!`
+- [ ] `IntelContext` / `IntelVectorStorage` following the Metal / CUDA /
+      ROCm pattern
+- [ ] Hand-written SGEMV kernel (no BLAS path available from Rust on
+      Intel)
+- [ ] Universal Vulkan fallback mode (`HIVE_GPU_VULKAN_UNIVERSAL=1`) that
+      also runs on NVIDIA / AMD drivers for Docker images without vendor
+      SDKs
+- [ ] Cross-backend consistency including Intel within 1e-4
+- [ ] CI job using `lavapipe` for software-Vulkan build verification
 
-### Features
+### Hardware targets (tiered)
 
-#### Vector Quantization
+- **Tier 1:** Arc Pro B70 (32 GB GDDR6) — primary workstation target.
+- **Tier 1:** Arc B580 (12 GB GDDR6) — primary consumer Battlemage.
+- **Tier 2:** Arc A770 / B60 / B65 — validated, lower priority.
+- **Future:** Crescent Island (Xe3P, 160 GB LPDDR5X) — sampling Q3 2026.
+
+Performance expectation: 40–60 % of native CUDA/ROCm on equivalent silicon
+price. Documented honestly — this is not meant to replace a vendor-native
+path on that vendor's hardware.
+
+### Dependencies
+
+- Hardware access: at least Arc B580 on a dev workstation; ideally a
+  self-hosted CI runner with an Arc Pro B70.
+- ROCm backend shipped first so the `build.rs` shader-compile pattern is
+  established.
+- Commitment to maintaining a fourth backend post-release.
+
+---
+
+## Phase 5 — Advanced Features (v0.4.0) — PLANNED ⚡
+
+**Priority:** ⚡ Medium · **Est. effort:** 3–4 months
+
+### Vector quantization
 
 - [ ] Product Quantization (PQ)
   - [ ] GPU-accelerated codebook training
   - [ ] Fast PQ encoding on GPU
   - [ ] Asymmetric distance computation
-- [ ] Scalar Quantization (SQ)
-  - [ ] SQ8, SQ6, SQ4 variants
+- [ ] Scalar Quantization (SQ8, SQ6, SQ4)
   - [ ] GPU-accelerated quantization
 - [ ] Binary Quantization
   - [ ] Hamming distance on GPU
-  - [ ] SIMD optimization
 
-#### HNSW Optimizations
+### HNSW on the GPU
 
-- [ ] Dynamic graph updates
-- [ ] GPU-accelerated pruning
-- [ ] Level-wise parallel construction
-- [ ] Batch insertion optimization
+- [ ] GPU-accelerated HNSW construction on CUDA
+- [ ] GPU-accelerated HNSW search on CUDA (port Metal's `metal_hnsw.metal`)
+- [ ] Matching implementation on ROCm
+- [ ] Dynamic graph updates and batch insertion
 - [ ] Memory-efficient graph storage
+- [ ] Level-wise parallel construction
 
-#### Advanced Distance Metrics
+### GPU-side top-K
+
+- [ ] CUDA: `cub::DeviceRadixSort` or hand-rolled radix-select
+- [ ] ROCm: equivalent via rocPRIM
+- [ ] Metal / Intel: parallel radix select compute kernels
+- [ ] Remove the CPU-side sort fallback from the hot path
+
+### Extended distance metrics
 
 - [ ] Manhattan distance (L1)
 - [ ] Chebyshev distance (L∞)
-- [ ] Custom distance functions
-- [ ] Mixed-precision distance computation
+- [ ] Custom user-supplied distance functions
+- [ ] Mixed-precision distance computation (f16 / bf16)
 
-#### Memory Management
+### Memory management
 
 - [ ] Adaptive buffer sizing
-- [ ] Memory pressure handling
-- [ ] Transparent swap to CPU memory
-- [ ] Compression for inactive data
-- [ ] VRAM defragmentation
+- [ ] Memory pressure handling (spill to CPU)
+- [ ] Transparent compression for inactive data
+- [ ] VRAM defragmentation / compaction pass
 
-#### Performance Monitoring
+### Observability
 
-- [ ] Real-time performance metrics
-- [ ] Throughput monitoring
-- [ ] Latency histograms
-- [ ] VRAM usage tracking
-- [ ] Profiling integration (Tracy, Instruments)
-
-**Target Completion**: 2025-07-31
+- [ ] Real-time performance metrics via `tracing` spans
+- [ ] Throughput / latency histograms
+- [ ] VRAM usage tracking endpoint
+- [ ] Optional Tracy / Instruments profiling integration
 
 ---
 
-## Phase 5: Production Readiness (v1.0.0) - PLANNED 📦
+## Phase 6 — Production Readiness (v1.0.0) — PLANNED 📦
 
-**Status**: 0% Complete  
-**Priority**: 📦 LOW (after core features)  
-**Estimated Time**: 2-3 months  
-**Impact**: High (production deployments)
+**Priority:** 📦 Triggered when v0.4 has been stable for at least one minor
+release · **Est. effort:** 2–3 months
 
-### Goals
+### Reliability
 
-Achieve production-grade stability, performance, and documentation for enterprise deployments.
+- [ ] Comprehensive error recovery paths
+- [ ] Graceful degradation to CPU fallback under VRAM pressure
+- [ ] Health check endpoint for server integrations
+- [ ] Automatic retry logic for transient driver errors
 
-### Production Features
+### Scalability
 
-#### Reliability
+- [ ] Multi-GPU support: per-context device selection
+- [ ] Intra-process load balancing across GPUs
+- [ ] Sharding strategies for > single-GPU VRAM datasets
+- [ ] Replication hooks
 
-- [ ] Comprehensive error recovery
-- [ ] Graceful degradation
-- [ ] Connection pooling
-- [ ] Health checks
-- [ ] Automatic retry logic
+### Integrations
 
-#### Scalability
+- [ ] First-class `hive-vectorizer` integration
+- [ ] Qdrant / Milvus / Weaviate plugins
+- [ ] LangChain vector-store adapter
 
-- [ ] Distributed vector search
-- [ ] Multi-GPU load balancing
-- [ ] Horizontal scaling support
-- [ ] Sharding strategies
-- [ ] Replication support
+### Observability (hardening)
 
-#### Integration
-
-- [ ] Official vectorizer integration
-- [ ] Qdrant plugin
-- [ ] Milvus plugin
-- [ ] Weaviate integration
-- [ ] LangChain integration
-
-#### Observability
-
-- [ ] OpenTelemetry integration
-- [ ] Prometheus metrics export
+- [ ] OpenTelemetry exporter
+- [ ] Prometheus metrics
 - [ ] Structured logging
 - [ ] Distributed tracing
-- [ ] Performance dashboards
 
-#### Documentation
+### Quality gates for 1.0
 
-- [ ] Complete API reference
-- [ ] Architecture deep-dive
-- [ ] Performance tuning guide
-- [ ] Deployment guide
-- [ ] Troubleshooting guide
-- [ ] Migration guides
-- [ ] Video tutorials
-
-#### Testing
-
-- [ ] 95%+ code coverage
-- [ ] Stress testing
-- [ ] Chaos engineering tests
-- [ ] Long-running stability tests
-- [ ] Memory leak detection
-
-**Target Completion**: 2025-10-31
+- [ ] ≥ 95 % code coverage
+- [ ] Long-running stability tests (24 h+)
+- [ ] Chaos-engineering style fault injection
+- [ ] Stress suite: millions of vectors, sustained QPS
+- [ ] Memory-leak audit (valgrind / compute-sanitizer) clean
 
 ---
 
-## Future Enhancements (v2.0.0+) - VISION
+## Future vision (v2.x+)
 
-### v2.0.0 - Distributed Systems
-
-- [ ] Distributed HNSW graph
-- [ ] Consensus-based replication
-- [ ] Geographic distribution
-- [ ] Cross-datacenter search
-- [ ] Zero-downtime updates
-
-### v2.1.0 - Machine Learning Integration
-
-- [ ] GPU-accelerated embedding generation
-- [ ] Model serving on GPU
-- [ ] Batch inference optimization
-- [ ] Vector transformation pipelines
-- [ ] Fine-tuning support
-
-### v2.2.0 - Advanced Query Features
-
-- [ ] Filtered search on GPU
-- [ ] Range search
-- [ ] Hybrid search (dense + sparse)
-- [ ] Multi-vector search
-- [ ] Semantic routing
-
-### v3.0.0 - Next-Generation Hardware
-
-- [ ] Apple Neural Engine support
-- [ ] AMD Instinct support
-- [ ] Intel Data Center GPU support
-- [ ] Tensor Processing Units (TPUs)
-- [ ] Quantum-resistant algorithms
+- Distributed vector search with consensus-based replication
+- Geographic distribution / cross-datacenter search
+- GPU-accelerated embedding generation (host the encoder on-device)
+- Hybrid search (dense + sparse) on GPU
+- Filtered search with GPU-side predicate evaluation
+- Next-generation hardware: Apple Neural Engine, AMD Instinct MI400,
+  Intel Crescent Island, TPUs
 
 ---
 
-## Metrics & Goals
-
-### Performance Targets
-
-| Metric | Current | v0.2.0 | v1.0.0 | v2.0.0 |
-|--------|---------|--------|--------|--------|
-| Vector Addition Throughput | 4,768 vec/s | 10,000 vec/s | 50,000 vec/s | 100,000 vec/s |
-| Search Latency (p99) | 1 ms | 0.5 ms | 0.1 ms | 0.05 ms |
-| HNSW Construction | 1s (10k vec) | 0.5s | 0.1s | 0.05s |
-| Memory Efficiency | 90% VRAM | 95% VRAM | 98% VRAM | 99% VRAM |
-| Max Vector Count | 10M | 100M | 1B | 10B |
-
-### Quality Targets
-
-| Metric | Current | v0.2.0 | v1.0.0 | v2.0.0 |
-|--------|---------|--------|--------|--------|
-| Test Coverage | 70% | 85% | 95% | 98% |
-| Documentation Coverage | 80% | 90% | 100% | 100% |
-| Zero-Day Vulnerabilities | 0 | 0 | 0 | 0 |
-| MTBF (Mean Time Between Failures) | N/A | 72h | 720h | 8760h |
-| Uptime SLA | N/A | 99% | 99.9% | 99.99% |
-
-### Adoption Targets
-
-| Metric | v0.2.0 | v1.0.0 | v2.0.0 |
-|--------|--------|--------|--------|
-| GitHub Stars | 100 | 1,000 | 5,000 |
-| Production Users | 10 | 100 | 1,000 |
-| Downloads (crates.io) | 1K | 10K | 100K |
-| Contributors | 5 | 20 | 50 |
-
----
-
-## Timeline Summary
+## Timeline
 
 ```
-2025 Q1 (Jan-Mar)     │ Phase 1: Foundation (v0.1.x)
-                      │ - Complete Metal backend
-                      │ - Comprehensive testing
-                      │ - Documentation
-                      │
-2025 Q2 (Apr-Jun)     │ Phase 2: Multi-Backend (v0.2.0)
-                      │ - CUDA implementation
-                      │ - ROCm implementation
-                      │ - Cross-backend testing
-                      │
-2025 Q3 (Jul-Sep)     │ Phase 3: Advanced Features (v0.3.0)
-                      │ - Quantization
-                      │ - HNSW optimizations
-                      │ - Performance monitoring
-                      │
-2025 Q4 (Oct-Dec)     │ Phase 4: Production Ready (v1.0.0)
-                      │ - Reliability features
-                      │ - Integration ecosystem
-                      │ - Complete documentation
-                      │
-2026 Q1+              │ Future: v2.0.0+
-                      │ - Distributed systems
-                      │ - ML integration
-                      │ - Next-gen hardware
+2024 Q4 – 2025 Q4     ✅ Phase 1 foundation (0.1.x)
+                         Metal backend, device info API, 72-test suite
+
+2026 Q2 (Apr)         ✅ Phase 2 CUDA shipped (0.2.0)
+                         cuBLAS SGEMV, 17 CUDA tests, RTX 4090 validation
+
+2026 Q2 – Q3          📝 Phase 3 ROCm (0.3.0)
+                         HIP + rocBLAS, gfx900+ coverage
+
+2026 Q3 – Q4          📝 Phase 4 Intel (0.3.x)
+                         Vulkan Compute + SPIR-V, Arc Pro target
+
+2026 Q4 – 2027 Q1     Phase 5 advanced features (0.4.x)
+                         Quantization, GPU HNSW, GPU top-K
+
+2027 Q2+              Phase 6 production readiness (1.0.0)
 ```
 
----
-
-## Release Versioning
-
-We follow [Semantic Versioning](https://semver.org/):
-
-- **MAJOR**: Breaking API changes (e.g., 1.0.0 → 2.0.0)
-- **MINOR**: New features, backwards compatible (e.g., 0.1.0 → 0.2.0)
-- **PATCH**: Bug fixes, backwards compatible (e.g., 0.1.5 → 0.1.6)
-
-### Version Support Policy
-
-| Version | Status | Support Until | Notes |
-|---------|--------|---------------|-------|
-| 0.1.x | Active | 2025-06-30 | Alpha, breaking changes expected |
-| 0.2.x | Planned | 2025-09-30 | Beta, API stabilizing |
-| 1.0.x | Planned | 2026-12-31 | LTS, stable API |
-| 2.0.x | Planned | TBD | Future major version |
+Dates are estimates anchored to engineering capacity; no hard external
+commitments.
 
 ---
 
-## Contributing to the Roadmap
+## Versioning policy
 
-We welcome community input on our roadmap! Here's how you can contribute:
+Semantic versioning ([semver.org](https://semver.org/)):
 
-1. **Request Features**: Open a GitHub issue with `[FEATURE REQUEST]` tag
-2. **Propose Changes**: Submit PRs to this roadmap document
-3. **Vote on Features**: React with 👍 on issues you want prioritized
-4. **Join Discussions**: Participate in GitHub Discussions
+- **MAJOR** — breaking API changes (e.g. 1.0.0 → 2.0.0)
+- **MINOR** — new features, backwards compatible (0.2.0 → 0.3.0)
+- **PATCH** — bug fixes (0.2.0 → 0.2.1)
 
-### Priority Criteria
-
-Features are prioritized based on:
-- **Impact**: How many users benefit?
-- **Effort**: Development complexity and time required
-- **Dependencies**: Blocked by other features?
-- **Community Demand**: Number of requests and votes
-- **Strategic Alignment**: Fits long-term vision?
+| Version | Status   | Support window     | Notes                               |
+|---------|----------|--------------------|-------------------------------------|
+| 0.1.x   | Archived | Ended with 0.2.0   | Metal-only; superseded              |
+| 0.2.x   | Active   | Until 0.4.0 ships  | Metal + CUDA; public API stable     |
+| 0.3.x   | Planned  | 9 months post-1.0  | Adds ROCm and Intel                 |
+| 0.4.x   | Planned  | 12 months post-1.0 | Advanced features                   |
+| 1.0.x   | Planned  | LTS                | Production-ready                    |
 
 ---
 
-## Risk Assessment
+## Priorities and decision rules
 
-### Technical Risks
+Features are prioritised by:
+
+1. **Impact** — how many users benefit, how large the market slice?
+2. **Dependencies** — blocked by other features?
+3. **Maintenance cost** — can we keep it green after release?
+4. **Strategic fit** — aligned with the "universal vector search" goal?
+5. **Community demand** — number of requests and votes on GitHub.
+
+A feature lands only if all five signals are positive. Hardware backends
+additionally require guaranteed access to the target silicon for both
+development and ongoing CI validation — shipping a backend we cannot test
+regressed is worse than not shipping it.
+
+---
+
+## Risks and mitigations
+
+### Technical
 
 | Risk | Probability | Impact | Mitigation |
-|------|------------|--------|------------|
-| GPU hardware incompatibility | Medium | High | Extensive testing, fallback to CPU |
-| Performance regressions | Medium | Medium | Comprehensive benchmarking, CI checks |
-| Memory leaks | Low | High | Extensive testing, ASAN/MSAN |
-| API breaking changes | High | Low | Clear versioning, migration guides |
+|------|-------------|--------|------------|
+| Vendor driver ABI drift (cudarc / HIP) | Medium | Medium | Pin minor versions, test matrix across CUDA 12.0 – 13.x |
+| Numerical divergence across backends | Medium | Medium | 1e-4 cross-backend consistency tests per release |
+| VRAM fragmentation after many expansions | Low | Medium | Compaction pass planned in 0.4 |
+| CI runners without GPU hide regressions | High | Low | Every GPU test is a no-op when no driver; self-hosted runner for nightly |
 
-### Project Risks
+### Organisational
 
 | Risk | Probability | Impact | Mitigation |
-|------|------------|--------|------------|
-| Insufficient contributors | Medium | Medium | Good documentation, easy onboarding |
-| Competing projects | High | Medium | Focus on performance, quality |
-| Dependency vulnerabilities | Low | High | Regular audits, quick patching |
-| Hardware vendor changes | Low | High | Backend abstraction, multiple backends |
+|------|-------------|--------|------------|
+| No AMD hardware for ROCm dev/CI | High | High | Secure cloud access (MI300 on GCP / Azure) before Phase 3 starts |
+| No Intel Arc hardware for Phase 4 | High | High | Workstation provisioning gate before any Intel code lands |
+| Maintainer bandwidth for four backends | Medium | High | Feature-gate everything; document abort triggers per analysis |
 
 ---
 
-## Success Criteria
+## Contributing
 
-### Phase 1 (v0.1.x)
-- ✅ Metal backend fully functional
-- ✅ 95%+ test coverage
-- ✅ Complete documentation
-- ✅ No critical bugs
+We welcome community input on the roadmap:
 
-### Phase 2 (v0.2.0)
-- ✅ CUDA and ROCm backends functional
-- ✅ Performance parity across backends
-- ✅ 100+ GitHub stars
-- ✅ 10+ production users
+1. **Request features:** open a GitHub issue tagged `[FEATURE REQUEST]`.
+2. **Propose changes:** submit a PR to this document.
+3. **Vote:** react with 👍 on issues you want prioritised.
+4. **Discuss:** join GitHub Discussions.
 
-### Phase 3 (v0.3.0)
-- ✅ Quantization reduces memory by 75%
-- ✅ HNSW 10x faster than CPU baseline
-- ✅ 500+ GitHub stars
-- ✅ 50+ production users
-
-### Phase 4 (v1.0.0)
-- ✅ 99.9% uptime in production
-- ✅ Official integrations released
-- ✅ 1,000+ GitHub stars
-- ✅ 100+ production users
-- ✅ Complete ecosystem documentation
-
----
-
-*Last Updated: 2025-01-03*
-*Next Review: 2025-02-01*
+For implementation work, pick up one of the phased tasks under
+[`.rulebook/tasks/`](../.rulebook/tasks/) and the corresponding analysis
+under [`docs/analysis/`](analysis/).

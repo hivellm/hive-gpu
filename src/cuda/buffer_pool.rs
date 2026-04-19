@@ -9,9 +9,9 @@ use std::sync::Arc;
 /// CUDA Buffer Pool
 #[cfg(feature = "cuda")]
 #[derive(Debug)]
+#[allow(dead_code)] // populated during phase 3 of phase3a_add-cuda-backend
 pub struct CudaBufferPool {
     context: Arc<CudaContext>,
-    // Implementation details would go here
 }
 
 #[cfg(feature = "cuda")]
@@ -22,16 +22,14 @@ impl CudaBufferPool {
     }
 
     /// Get buffer from pool
-    pub fn get_buffer(&mut self, size: usize) -> Result<()> {
-        // This is a placeholder implementation
+    pub fn get_buffer(&mut self, _size: usize) -> Result<()> {
         Err(HiveGpuError::Other(
             "CUDA buffer pool not implemented yet".to_string(),
         ))
     }
 
     /// Return buffer to pool
-    pub fn return_buffer(&mut self, buffer: ()) -> Result<()> {
-        // This is a placeholder implementation
+    pub fn return_buffer(&mut self, _buffer: ()) -> Result<()> {
         Ok(())
     }
 }

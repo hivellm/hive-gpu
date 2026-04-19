@@ -17,16 +17,12 @@ impl CudaHelpers {
         grid_size: (u32, u32, u32),
     ) -> Result<(u32, u32, u32)> {
         // Calculate optimal block size based on device capabilities
-        let (major, minor) = context.compute_capability();
+        let (major, _minor) = context.compute_capability();
 
         // Block size limits based on compute capability
-        let max_threads_per_block = if major >= 7 {
-            1024 // Volta and newer
-        } else if major >= 6 {
-            1024 // Pascal
-        } else {
-            512 // Older architectures
-        };
+        // Pascal (6.x) and newer (Volta 7.x+) support 1024 threads/block;
+        // earlier architectures cap at 512.
+        let max_threads_per_block = if major >= 6 { 1024 } else { 512 };
 
         // Calculate optimal block size
         let x = grid_size.0.min(max_threads_per_block);

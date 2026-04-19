@@ -5,6 +5,60 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.0] - 2026-04-19
+
+### Added
+
+- **Functional CUDA backend** for NVIDIA GPUs (Volta / sm_70+) on Linux and
+  Windows, built on `cudarc 0.13` driver API + cuBLAS:
+  - `CudaContext` wraps `cudarc::driver::CudaDevice` plus a cuBLAS handle;
+    live device info via `cuDeviceGetAttribute`, `cuMemGetInfo`, and
+    `cuDriverGetVersion`, plus PCI bus id formatting.
+  - `CudaVectorStorage` backed by a single contiguous `CudaSlice<f32>` with
+    batched `htod_copy` + `memcpy_dtod_sync` uploads. Adaptive capacity
+    growth (2× / 1.5× / 1.2×) matching the Metal backend, soft-delete via
+    `HashSet<usize>`, host-cached squared norms.
+  - GPU search via cuBLAS SGEMV (trans=T on the column-major view): works
+    for DotProduct, Cosine (SGEMV + norm normalisation), and Euclidean
+    (L2² derived from dots + norms). Top-K on the CPU after a single
+    `dtoh_sync_copy`.
+- **CUDA integration tests** (17 tests, all passing on RTX 4090):
+  `tests/cuda_smoke.rs`, `tests/cuda_device_info.rs`,
+  `tests/cuda_vector_ops.rs`. Each test is a no-op on hosts without a
+  reachable driver, keeping CI green on GPU-less runners.
+- **CUDA benchmark** `benches/cuda_ops.rs` comparing GPU throughput against a
+  naïve CPU reference for add and search.
+- **GitHub Actions workflow** `.github/workflows/cuda-build.yml` runs check,
+  clippy, fmt, and the test suite against the
+  `nvidia/cuda:12.4.1-devel-ubuntu22.04` container image.
+- `HiveGpuError::CudaError(String)` and `CublasError(String)` variants.
+- Minimal `build.rs` with rerun hints for future CUDA kernel assets.
+- Multi-backend analyses under `docs/analysis/{cuda,gcn,intel}/` documenting
+  state, gaps, and phased plans.
+
+### Changed
+
+- Detection in `src/backends/detector.rs` now uses
+  `cudarc::driver::result::init` + `get_count` instead of env-var inspection.
+  Target-gated to Linux / Windows; macOS is unaffected.
+- `cuda` Cargo feature now actually pulls in its dependency: `cuda =
+  ["dep:cudarc"]` with `cudarc` declared in a target-gated
+  `[target.'cfg(any(target_os = "linux", target_os = "windows"))']` block
+  carrying `driver`, `cublas`, `cuda-12040`, and `dynamic-linking` features.
+- Removed project-wide `#![allow(warnings)]` from `src/lib.rs`. Cleaned up
+  24 latent warnings (unused imports, underscore-prefixed params, scoped
+  `#[allow(dead_code)]` on struct fields still being populated by follow-up
+  phases). `cargo clippy --features cuda --lib --tests --benches -- -D
+  warnings` is now part of the quality gate.
+- `docs/benchmarks/PERFORMANCE.md` updated with RTX 4090 baseline numbers
+  and CUDA test suite summary.
+
+### Breaking
+
+- None at the public-API level; existing Metal code paths and trait
+  signatures are unchanged. The `cuda` feature behaviour changed from a
+  compile-time no-op in 0.1.x to a fully functional backend in 0.2.0.
+
 ## [0.1.10] - 2025-11-04
 
 ### Fixed

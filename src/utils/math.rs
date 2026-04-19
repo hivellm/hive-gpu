@@ -1,11 +1,7 @@
 //! Mathematical utilities for vector operations
 
-use crate::types::GpuDistanceMetric;
-
 /// Vector math utilities
 pub mod vector_math {
-    use super::*;
-
     /// Calculate cosine similarity between two vectors
     pub fn cosine_similarity(a: &[f32], b: &[f32]) -> f32 {
         if a.len() != b.len() {
@@ -61,7 +57,9 @@ pub mod vector_math {
 
 /// Similarity calculation utilities
 pub mod similarity_calculations {
-    use super::*;
+    use crate::types::GpuDistanceMetric;
+
+    use super::vector_math;
 
     /// Calculate similarity based on distance metric
     pub fn calculate_similarity(a: &[f32], b: &[f32], metric: GpuDistanceMetric) -> f32 {

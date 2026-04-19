@@ -27,6 +27,7 @@ impl std::fmt::Display for GpuBackendType {
 }
 
 /// Detect all available GPU backends on the current system
+#[allow(clippy::vec_init_then_push)] // pushes live inside cfg-gated blocks
 pub fn detect_available_backends() -> Vec<GpuBackendType> {
     let mut backends = Vec::new();
 
@@ -39,7 +40,7 @@ pub fn detect_available_backends() -> Vec<GpuBackendType> {
     }
 
     // Check CUDA availability
-    #[cfg(feature = "cuda")]
+    #[cfg(all(feature = "cuda", any(target_os = "linux", target_os = "windows")))]
     {
         if is_cuda_available() {
             backends.push(GpuBackendType::Cuda);
@@ -76,12 +77,20 @@ fn is_metal_available() -> bool {
     MTLCreateSystemDefaultDevice().is_some()
 }
 
-/// Check if CUDA is available on the current system
-#[cfg(feature = "cuda")]
+/// Check if CUDA is available on the current system.
+///
+/// Uses cudarc's driver-API probe, which dynamically loads the CUDA driver at
+/// call time. Returns `false` when the driver is missing or no devices are
+/// enumerable — never panics.
+#[cfg(all(feature = "cuda", any(target_os = "linux", target_os = "windows")))]
 fn is_cuda_available() -> bool {
-    // This is a simplified check - in practice you'd check for CUDA runtime
-    // and available devices
-    std::env::var("CUDA_VISIBLE_DEVICES").is_ok() || std::env::var("CUDA_HOME").is_ok()
+    use cudarc::driver::result;
+    match result::init() {
+        Ok(()) => result::device::get_count()
+            .map(|count| count > 0)
+            .unwrap_or(false),
+        Err(_) => false,
+    }
 }
 
 /// Get backend-specific device information

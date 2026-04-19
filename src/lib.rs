@@ -3,8 +3,6 @@
 //! This crate provides GPU-accelerated vector operations using Metal (Apple Silicon)
 //! and CUDA (NVIDIA) backends for maximum performance in vector similarity search.
 
-#![allow(warnings)]
-
 pub mod error;
 pub mod traits;
 pub mod types;
