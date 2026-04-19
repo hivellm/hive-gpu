@@ -728,3 +728,63 @@ kernel void gpu_find_top_k_results(
 
     final_results[tid] = best;
 }
+
+// =====================================================================
+// Brute-force SGEMV / SGEMM-style kernels (added for phase4a / phase4c)
+// =====================================================================
+//
+// These kernels provide cuBLAS-SGEMV-equivalent primitives for the Metal
+// backend without pulling in Metal Performance Shaders. They are used by
+// MetalNativeVectorStorage::search (brute-force) and MetalIvfIndex (coarse
+// cluster selection, refined per-cluster search, and k-means assignment).
+
+/// SGEMV: scores[i] = sum_d matrix[i, d] * query[d].
+/// matrix is row-major of shape (n_vectors, dimension).
+/// One thread per output row — each thread reads an entire vector and
+/// produces one dot product.
+kernel void sgemv_dot(
+    const device float* matrix     [[buffer(0)]],
+    const device float* query      [[buffer(1)]],
+    device float*       scores     [[buffer(2)]],
+    constant uint&      dimension  [[buffer(3)]],
+    constant uint&      n_vectors  [[buffer(4)]],
+    uint                tid        [[thread_position_in_grid]])
+{
+    if (tid >= n_vectors) {
+        return;
+    }
+    const device float* row = matrix + (uint)tid * dimension;
+    float sum = 0.0f;
+    for (uint d = 0; d < dimension; ++d) {
+        sum += row[d] * query[d];
+    }
+    scores[tid] = sum;
+}
+
+/// SGEMM-lite: out[i, j] = sum_d samples[i, d] * centroids[j, d].
+/// samples is row-major (n_samples, dimension); centroids is row-major
+/// (n_list, dimension). Output is row-major (n_samples, n_list).
+/// Grid = (n_samples, n_list); one thread per output element.
+/// Used by MetalIvfIndex for k-means assignment and batch add.
+kernel void sgemm_dot(
+    const device float* samples    [[buffer(0)]],
+    const device float* centroids  [[buffer(1)]],
+    device float*       out        [[buffer(2)]],
+    constant uint&      dimension  [[buffer(3)]],
+    constant uint&      n_list     [[buffer(4)]],
+    constant uint&      n_samples  [[buffer(5)]],
+    uint2               gid        [[thread_position_in_grid]])
+{
+    uint i = gid.x; // sample
+    uint j = gid.y; // centroid
+    if (i >= n_samples || j >= n_list) {
+        return;
+    }
+    const device float* s = samples   + i * dimension;
+    const device float* c = centroids + j * dimension;
+    float sum = 0.0f;
+    for (uint d = 0; d < dimension; ++d) {
+        sum += s[d] * c[d];
+    }
+    out[i * n_list + j] = sum;
+}
