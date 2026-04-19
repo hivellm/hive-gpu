@@ -3,15 +3,15 @@
 //! Monitor VRAM usage for CUDA GPU operations.
 
 use super::context::CudaContext;
-use crate::error::{HiveGpuError, Result};
+use crate::error::Result;
 use std::sync::Arc;
 
 /// CUDA VRAM Monitor
 #[cfg(feature = "cuda")]
 #[derive(Debug)]
+#[allow(dead_code)] // populated during phase 3 of phase3a_add-cuda-backend
 pub struct CudaVramMonitor {
     context: Arc<CudaContext>,
-    // Implementation details would go here
 }
 
 #[cfg(feature = "cuda")]
@@ -23,13 +23,11 @@ impl CudaVramMonitor {
 
     /// Get current VRAM usage
     pub fn get_vram_usage(&self) -> Result<u64> {
-        // This is a placeholder implementation
         Ok(0)
     }
 
     /// Get available VRAM
     pub fn get_available_vram(&self) -> Result<u64> {
-        // This is a placeholder implementation
-        Ok(1024 * 1024 * 1024) // 1GB placeholder
+        Ok(1024 * 1024 * 1024)
     }
 }

@@ -6,7 +6,7 @@
 use crate::error::{HiveGpuError, Result};
 use crate::traits::{GpuBackend, GpuContext};
 use crate::types::{GpuCapabilities, GpuDeviceInfo, GpuMemoryStats};
-use tracing::{debug, info};
+use tracing::debug;
 
 /// CUDA Context - Single source of truth
 #[cfg(feature = "cuda")]
@@ -121,20 +121,18 @@ impl GpuBackend for CudaContext {
 impl GpuContext for CudaContext {
     fn create_storage(
         &self,
-        dimension: usize,
-        metric: crate::types::GpuDistanceMetric,
+        _dimension: usize,
+        _metric: crate::types::GpuDistanceMetric,
     ) -> Result<Box<dyn crate::traits::GpuVectorStorage>> {
-        // This will be implemented when we migrate vector_storage.rs
         Err(HiveGpuError::Other("Not implemented yet".to_string()))
     }
 
     fn create_storage_with_config(
         &self,
-        dimension: usize,
-        metric: crate::types::GpuDistanceMetric,
-        config: crate::types::HnswConfig,
+        _dimension: usize,
+        _metric: crate::types::GpuDistanceMetric,
+        _config: crate::types::HnswConfig,
     ) -> Result<Box<dyn crate::traits::GpuVectorStorage>> {
-        // This will be implemented when we migrate vector_storage.rs
         Err(HiveGpuError::Other("Not implemented yet".to_string()))
     }
 

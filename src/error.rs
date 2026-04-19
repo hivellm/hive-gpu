@@ -53,6 +53,14 @@ pub enum HiveGpuError {
     #[error("Invalid configuration: {0}")]
     InvalidConfiguration(String),
 
+    /// CUDA driver or runtime failure
+    #[error("CUDA error: {0}")]
+    CudaError(String),
+
+    /// cuBLAS call failure
+    #[error("cuBLAS error: {0}")]
+    CublasError(String),
+
     /// Internal error
     #[error("Internal error: {0}")]
     InternalError(String),

@@ -10,6 +10,7 @@ use std::sync::Arc;
 /// CUDA HNSW Graph
 #[cfg(feature = "cuda")]
 #[derive(Debug)]
+#[allow(dead_code)] // populated during phase 5 of phase3a_add-cuda-backend
 pub struct CudaHnswGraph {
     context: Arc<CudaContext>,
     dimension: usize,
@@ -35,18 +36,14 @@ impl CudaHnswGraph {
     }
 
     /// Build HNSW graph from vectors
-    pub fn build_graph(&mut self, vectors: &[GpuVector]) -> Result<()> {
-        // This is a placeholder implementation
-        // In practice, you'd implement GPU-accelerated HNSW construction using CUDA kernels
+    pub fn build_graph(&mut self, _vectors: &[GpuVector]) -> Result<()> {
         Err(HiveGpuError::Other(
             "CUDA HNSW graph construction not implemented yet".to_string(),
         ))
     }
 
     /// Search for similar vectors
-    pub fn search(&self, query: &[f32], k: usize) -> Result<Vec<GpuSearchResult>> {
-        // This is a placeholder implementation
-        // In practice, you'd implement GPU-accelerated HNSW search using CUDA kernels
+    pub fn search(&self, _query: &[f32], _k: usize) -> Result<Vec<GpuSearchResult>> {
         Err(HiveGpuError::Other(
             "CUDA HNSW search not implemented yet".to_string(),
         ))

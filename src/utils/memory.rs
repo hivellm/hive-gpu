@@ -1,11 +1,7 @@
 //! Memory management utilities
 
-use crate::error::{HiveGpuError, Result};
-
 /// Memory utility functions
 pub mod memory_utils {
-    use super::*;
-
     /// Calculate memory size for vectors
     pub fn calculate_vector_memory_size(dimension: usize, count: usize) -> usize {
         count * dimension * std::mem::size_of::<f32>()
@@ -39,14 +35,16 @@ pub mod memory_utils {
 
 /// Buffer utility functions
 pub mod buffer_utils {
-    use super::*;
+    use crate::error::{HiveGpuError, Result};
+
+    use super::memory_utils;
 
     /// Buffer alignment for optimal GPU performance
     pub const BUFFER_ALIGNMENT: usize = 256;
 
     /// Align buffer size to GPU requirements
     pub fn align_buffer_size(size: usize) -> usize {
-        ((size + BUFFER_ALIGNMENT - 1) / BUFFER_ALIGNMENT) * BUFFER_ALIGNMENT
+        size.div_ceil(BUFFER_ALIGNMENT) * BUFFER_ALIGNMENT
     }
 
     /// Calculate buffer pool size
@@ -78,7 +76,7 @@ pub mod buffer_utils {
             )));
         }
 
-        if size % alignment != 0 {
+        if !size.is_multiple_of(alignment) {
             return Err(HiveGpuError::BufferAllocationFailed(format!(
                 "Buffer size {} not aligned to {}",
                 size, alignment

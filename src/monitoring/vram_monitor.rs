@@ -106,7 +106,7 @@ impl VramMonitor {
         let stats = self.get_vram_stats();
         let mut report = String::new();
 
-        report.push_str(&format!("VRAM Report:\n"));
+        report.push_str("VRAM Report:\n");
         report.push_str(&format!(
             "  Total VRAM: {:.2} MB\n",
             stats.total_vram as f64 / 1024.0 / 1024.0

@@ -12,6 +12,7 @@ use std::sync::Arc;
 /// CUDA Vector Storage
 #[cfg(feature = "cuda")]
 #[derive(Debug)]
+#[allow(dead_code)] // fields populated in later phases of phase3a_add-cuda-backend
 pub struct CudaVectorStorage {
     context: Arc<CudaContext>,
     vector_count: usize,
@@ -36,25 +37,21 @@ impl CudaVectorStorage {
     }
 
     /// Add vector to storage
-    pub fn add_vector(&mut self, vector: &GpuVector) -> Result<usize> {
-        // This is a placeholder implementation
-        // In practice, you'd implement CUDA-accelerated vector storage
+    pub fn add_vector(&mut self, _vector: &GpuVector) -> Result<usize> {
         let index = self.vector_count;
         self.vector_count += 1;
         Ok(index)
     }
 
     /// Get vector by ID
-    pub fn get_vector(&self, id: &str) -> Result<Option<GpuVector>> {
-        // This is a placeholder implementation
+    pub fn get_vector(&self, _id: &str) -> Result<Option<GpuVector>> {
         Err(HiveGpuError::Other(
             "CUDA vector retrieval not implemented yet".to_string(),
         ))
     }
 
     /// Remove vector by ID
-    pub fn remove_vector(&mut self, id: &str) -> Result<()> {
-        // This is a placeholder implementation
+    pub fn remove_vector(&mut self, _id: &str) -> Result<()> {
         Ok(())
     }
 
@@ -75,8 +72,7 @@ impl GpuVectorStorage for CudaVectorStorage {
         Ok(indices)
     }
 
-    fn search(&self, query: &[f32], limit: usize) -> Result<Vec<GpuSearchResult>> {
-        // This is a placeholder implementation
+    fn search(&self, _query: &[f32], _limit: usize) -> Result<Vec<GpuSearchResult>> {
         Err(HiveGpuError::Other(
             "CUDA search not implemented yet".to_string(),
         ))

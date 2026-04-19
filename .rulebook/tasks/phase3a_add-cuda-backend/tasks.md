@@ -1,9 +1,9 @@
 ## 1. Infrastructure
-- [ ] 1.1 Enable `cudarc` dependency behind `cuda` feature in `Cargo.toml`
-- [ ] 1.2 Add `HiveGpuError::CudaError(String)` and `CublasError(String)` in `src/error.rs`
-- [ ] 1.3 Create minimal `build.rs` with `rerun-if-changed` for CUDA kernels
-- [ ] 1.4 Remove `#![allow(warnings)]` from `src/lib.rs`
-- [ ] 1.5 Replace env-var detection with `cudarc::driver::CudaDevice::count()` in `src/backends/detector.rs`
+- [x] 1.1 Enable `cudarc` dependency behind `cuda` feature in `Cargo.toml`
+- [x] 1.2 Add `HiveGpuError::CudaError(String)` and `CublasError(String)` in `src/error.rs`
+- [x] 1.3 Create minimal `build.rs` with `rerun-if-changed` for CUDA kernels
+- [x] 1.4 Remove `#![allow(warnings)]` from `src/lib.rs`
+- [x] 1.5 Replace env-var detection with `cudarc::driver::CudaDevice::count()` in `src/backends/detector.rs`
 
 ## 2. Context
 - [ ] 2.1 Rewrite `src/cuda/context.rs` using `cudarc::driver::CudaDevice`
